@@ -40,6 +40,9 @@
       pkgs.mypy
       pkgs.shellcheck
       pkgs.go-tools
+
+    # Package management
+      pkgs.pdm
       
       
     # # It is sometimes useful to fine-tune packages, for example, by applying
@@ -89,6 +92,15 @@
   #
   home.sessionVariables = {
     # EDITOR = "emacs";
+  };
+
+  programs.git = {
+    enable = true;
+    userName = "Rotimi";
+    userEmail = "olarotimi@protonmail.com";
+    # alias = {
+      
+    # };
   };
 
   # Let Home Manager install and manage itself.
