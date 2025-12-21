@@ -94,6 +94,20 @@
     # EDITOR = "emacs";
   };
 
+programs.bash = {
+  enable = true;
+  # This line is the "safety net" that prevents the command not found error
+  bashrcExtra = ''
+    if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+      . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+    fi
+  '';
+};
+
+programs.zellij = {
+  enable = true;
+  enableBashIntegration = true;
+};
   programs.git = {
     enable = true;
     userName = "Rotimi";
