@@ -1,10 +1,10 @@
-{ config, pkgs, ... }:
+{ config, pkgs, ... }
 
 {
   # Home Manager needs a bit of information about you and the paths it should
   # manage.
-  home.username = "rotimi-dev";
-  home.homeDirectory = "/home/rotimi-dev";
+  home.username = "rotimi";
+  home.homeDirectory = "/home/rotimi";
 
   # This value determines the Home Manager release that your configuration is
   # compatible with. This helps avoid breakage when a new Home Manager release
@@ -27,6 +27,7 @@
       pkgs.helix
       pkgs.tlrc
       pkgs.man
+      pkgs.stow
       #coding language
       pkgs.python310
       pkgs.go
@@ -110,8 +111,8 @@ programs.zellij = {
 };
   programs.git = {
     enable = true;
-    userName = "Rotimi";
-    userEmail = "olarotimi@protonmail.com";
+    settings.user.name= "Rotimi";
+    settings.user.email = "olarotimi@protonmail.com";
     # alias = {
       
     # };
