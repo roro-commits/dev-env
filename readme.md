@@ -28,12 +28,15 @@ line-number = "relative"
 cursorline = true
 bufferline = "always"
 
+
 [keys.normal]
+```
+
 # The "Space" Leader setup
 "space" = { "f" = "file_picker", "w" = ":w", "q" = ":q" }
 
 # Navigation between Helix tabs (matches Zellij movement)
-"A-h" = ":bp"
+"A-h" = ":bp"\\
 "A-l" = ":bn"
 
 
