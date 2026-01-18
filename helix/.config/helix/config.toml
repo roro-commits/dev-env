@@ -22,3 +22,31 @@ render = true
 # Navigation between Helix tabs (matches Zellij movement)
 "A-h" = ":bp"
 "A-l" = ":bn"
+
+# --- LEFT HAND: ACTIONS ---
+"f" = ["extend_line_below", "extend_to_line_bounds"] # Left Index: Select Line (Old 'x')
+"d" = "delete_selection"                            # Left Middle: Delete
+"s" = "change_selection"                            # Left Ring: Change (Old 'c')
+"a" = "insert_mode"                                 # Left Pinky: Insert (Old 'i')
+"c" = "append_mode"                                 # Left Inner Index: Append (Old 'a')
+
+# --- RIGHT HAND: NAVIGATION ---
+"l" = "move_next_word_start"      # Right Ring: Word Forward (Old 'w')
+"h" = "move_prev_word_start"      # Right Inner Index: Word Back (Old 'b')
+"j" = "find_next_char"            # Right Index: Find Char (Old 'f')
+";" = "move_next_word_end"        # Right Pinky: Word End (Old 'e')
+
+# --- THE CORRECTED 'K' BINDING ---
+"k" = "select_mode"               # Middle: Opens the Match/Surround menu (Old 'm')
+
+# --- RIGHT HAND TOP/BOTTOM ---
+"o" = "find_till_char"            # Right Top Mid: Find Till (Old 't')
+"p" = "repeat_last_motion"        # Right Top Pinky: Repeat (Old 'Alt-.')
+"n" = "goto_line_start"           # Right Bottom Inner: Home
+"m" = "goto_line_end"             # Right Bottom Index: End
+
+# --- SHIFTED POWER MOVES ---
+"F" = ["extend_line_above", "extend_to_line_bounds"]
+"L" = "move_next_long_word_start"
+"H" = "move_prev_long_word_start"
+"J" = "find_prev_char"
