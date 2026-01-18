@@ -98,3 +98,46 @@ keybinds {
         bind "Alt f" { ToggleFloatingPanes; }
     }
 }
+
+
+🧬 Helix Keymap Documentation: 38-Key Totem Edition
+
+This document details the ergonomic remapping of Helix for a sub-40% split keyboard (GEIGEIGEIST Totem). The layout focuses on maintaining high-speed editing and navigation without ever leaving the home row.
+📐 Ergonomic Philosophy
+
+On a 38-key layout, finger travel is the enemy. This keymap reassigns core Helix functionality based on three rules:
+
+    Verticality via Layers: Up/Down navigation is handled by a dedicated hardware thumb layer.
+
+    Left Hand = Editing: The left home row handles "destructive" and "constructive" actions.
+
+    Right Hand = Horizontal Navigation: The right home row handles X-axis jumps and character seeking.
+
+🎹 Home Row Reference
+
+Left Hand: The "Editor"
+Key	Finger	Command	Helix Default	Purpose
+A	Pinky	insert_mode	i	Enter Insert mode
+S	Ring	change_selection	c	Delete + enter Insert mode
+D	Middle	delete_selection	d	Delete current selection
+F	Index	extend_line_below	x	Select entire line
+C	Inner	append_mode	a	Append after selection
+
+Right Hand: The "Navigator"
+Key	Finger	Command	Helix Default	Purpose
+H	Inner	move_prev_word_start	b	Jump word back
+J	Index	find_next_char	f	Find character forward (Seek)
+K	Middle	select_mode	m	Match/Surround menu
+L	Ring	move_next_word_start	w	Jump word forward
+;	Pinky	move_next_word_end	e	Jump to word end
+🚀 High-Frequency Combos
+
+Optimizing the home row enables natural "finger rolls" for the most common editing tasks:
+
+    Wipe Current Line: f → d (Index to Middle roll).
+
+    Select inside Brackets: k → m (Middle to Bottom Index).
+
+    Change Word: l (jump to word) → s (instantly change it).
+
+    Symbol Teleport: j → [char] (Seek to symbol on current line).
