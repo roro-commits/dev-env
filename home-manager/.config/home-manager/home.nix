@@ -44,7 +44,9 @@
 
     # Package management
       pkgs.pdm
-      
+
+    #clipboard manager
+      pkgs.xclips      
       
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
@@ -59,7 +61,7 @@
     #   echo "Hello, ${config.home.username}!"
     # '')
   ];
-
+}
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
