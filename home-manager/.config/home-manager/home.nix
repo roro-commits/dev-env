@@ -1,4 +1,4 @@
-{ config, pkgs, ... }
+{ config, pkgs, ... }:
 
 {
   # Home Manager needs a bit of information about you and the paths it should
@@ -29,7 +29,14 @@
       pkgs.man
       pkgs.stow
       #coding language
-      pkgs.python310
+      (pkgs.python3.withPackages (ps: with ps; [
+    # List your packages here
+      numpy
+      pandas
+      requests
+      black
+      ipython
+      ]))
       pkgs.go
       pkgs.ansible
       #infrasctruture management
@@ -46,7 +53,7 @@
       pkgs.pdm
 
     #clipboard manager
-      pkgs.xclips      
+      pkgs.xclip      
       
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
@@ -61,7 +68,7 @@
     #   echo "Hello, ${config.home.username}!"
     # '')
   ];
-}
+
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
   home.file = {
