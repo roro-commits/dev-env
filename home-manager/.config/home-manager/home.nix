@@ -22,13 +22,25 @@
     # # "Hello, world!" when run.
     # pkgs.hello
     # my work flow packages
+      pkgs.pdm
+      pkgs.ruff
+      # pkgs.astral-ty  # Use pkgs.ty if that is how it is named in your channel
+      pkgs.nodePackages.bash-language-server
+      pkgs.shellcheck
+      pkgs.yaml-language-server
+      pkgs.yamllint
+      pkgs.marksman
+      pkgs.typos-lsp
+      pkgs.codebook # Ensure this is available in your nixpkgs/overlay
       pkgs.zellij
       pkgs.zmate
       pkgs.helix
       pkgs.tlrc
       pkgs.man
       pkgs.stow
-      #coding language
+      pkgs.aider-chat-full      # The autonomous CLI agent
+      pkgs.uv              # Fast python runner (to manage local vector DBs)
+    #coding language
       (pkgs.python3.withPackages (ps: with ps; [
     # List your packages here
       numpy
@@ -36,6 +48,8 @@
       requests
       black
       ipython
+      openpyxl
+      virtualenv
       ]))
       pkgs.go
       pkgs.ansible
@@ -45,6 +59,7 @@
       
     # Code quality
       pkgs.ruff
+      pkgs.ty
       pkgs.mypy
       pkgs.shellcheck
       pkgs.go-tools
@@ -100,32 +115,138 @@
   #
   #  /etc/profiles/per-user/rotimi-dev/etc/profile.d/hm-session-vars.sh
   #
-  home.sessionVariables = {
-    # EDITOR = "emacs";
-  };
+  #
+# 1. Enable NVIDIA drivers
+  nixpkgs.config.allowUnfree = true; 
+  # Enable Ollama as a user service
+  # services.ollama = {
+  #   enable = true;
+  #   package = pkgs.ollama-cuda;
+  #   acceleration = "cuda"; # Or "rocm" if you're on AMD
+  # };
+  # services.ollama = {
+  #     enable = true;
+        
+  #     # 2. Configure GPU & Context for your 16GB VRAM
+  #     environmentVariables = {
+  #       OLLAMA_FLASH_ATTENTION = "1";
+  #       OLLAMA_KV_CACHE_TYPE = "q4_0";      # Compresses context to fit more in VRAM
+  #       OLLAMA_NUM_PARALLEL = "2";         # Lets the agent do two things at once
+  #       # Set your high-priority path if needed
+  #       PATH = "$HOME/.local/bin:$PATH";
+  #     };
+  #   };
 
-programs.bash = {
+  # Don't forget to force the local host in session variables so you never need an API key
+  home.sessionVariables = {
+    
+    OLLAMA_KEEP_ALIVE = "60m"; # Keeps the model in VRAM for 1 hour
+    OLLAMA_API_BASE = "http://127.0.0.1:11434";
+    # Default to the 'coder' model if you just type 'aider' without arguments
+    AIDER_MODEL = "ollama_chat/deepseek-coder-v2:lite";
+    LD_LIBRARY_PATH = "/usr/lib/nvidia";
+    OLLAMA_FLASH_ATTENTION = "1";
+    OLLAMA_KV_CACHE_TYPE = "q4_0";      # Compresses context to fit more in VRAM
+    OLLAMA_NUM_PARALLEL = "2";         # Lets the agent do two things at once
+    # Set your high-priority path if needed
+    PATH = "$HOME/.local/bin:$PATH";
+
+    };
+
+ programs.bash = {
   enable = true;
   # This line is the "safety net" that prevents the command not found error
   bashrcExtra = ''
     if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
       . "$HOME/.nix-profile/etc/profile.d/nix.sh"
     fi
-  '';
-};
+    export PATH="/home/rotimi/.opencode/bin:$PATH"
+    export PATH="/usr/bin/ollama:$PATH"
+  ''; 
+
+ shellAliases = {
+  # 1. THE DAILY DRIVER (DeepSeek V2 Lite)
+  # Best balance of smarts and context memory. Fits 100% in your VRAM.
+  # Uses 'diff' format for speed, but switches to 'whole' if the edit is massive.
+  scripter = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format diff --no-stream --cache-prompts --map-tokens 1024 ";
+  coder = "aider --timeout 1200 --model ollama_chat/deepseek-verbose --model-metadata-file ~/.aider.model.metadata.json --edit-format whole --no-stream --cache-prompts --map-tokens 1024";
+  # If you work on a HUGE existing codebase, use this one (Lowers map size to save memory)
+  legacy-coder = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format whole --no-stream --map-tokens 512";
+  
+
+  # 2. THE ARCHITECT (Qwen 2.5 32B)
+  # Maximum intelligence for hard problems. 
+  # WARNING: This will spill slightly into System RAM (~19GB total), so it will be slower.
+  # We use '--no-stream' strictly here to prevent stuttering while it thinks.
+  architect = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:32b --edit-format diff --no-stream --map-tokens 0";
+
+  # 3. THE SPEED DEMON (Qwen 2.5 14B)
+  # Instant replies. Use this for quick scripts, css fixes, or small refactors.
+  # It leaves massive room for context, so we enable a huge repo map.
+
+  fastscripter = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format diff --no-stream --map-tokens 2048";
+  fastcoder = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format whole --no-stream --map-tokens 2048";
+
+  };
+  };
 
 programs.zellij = {
   enable = true;
   enableBashIntegration = true;
 };
-  programs.git = {
-    enable = true;
-    settings.user.name= "Rotimi";
-    settings.user.email = "olarotimi@protonmail.com";
-    # alias = {
-      
-    # };
+
+programs.git = {
+enable = true;
+settings.user.name= "Rotimi";
+settings.user.email = "olarotimi@protonmail.com";
+# alias = {
+
+# };
+};
+
+  programs.helix = {
+  enable = true;
+  languages = {
+  language-server = {
+    # Python
+    ty = { command = "ty"; args = ["server"]; };
+    ruff = { command = "ruff"; args = ["server"]; };
+    
+    # Spellcheckers (codebook: serve, typos: --stdio)
+    codebook = { command = "codebook-lsp"; args = ["serve"]; };
+    typos = { command = "typos-lsp"; args = ["--stdio"]; };
+    
+    # Bash, Markdown, and YAML
+    bash-lsp = { command = "bash-language-server"; args = ["start"]; };
+    marksman = { command = "marksman"; args = ["server"]; };
+    yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
   };
+
+  language = [
+    {
+      name = "python";
+      file-types = ["py" "pyi"]; 
+      language-servers = [ "ty" "ruff" "typos" "codebook" ];
+      auto-format = true;
+    }
+    {
+      name = "bash";
+      file-types = ["sh" "bash" ".bashrc" ".bash_profile"]; 
+      language-servers = [ "bash-lsp" "typos" "codebook" ];
+    }
+    {
+      name = "markdown";
+      file-types = ["md" "markdown"];
+      language-servers = [ "marksman" "typos" "codebook" ];
+    }
+    {
+      name = "yaml";
+      file-types = ["yml" "yaml"];
+      language-servers = [ "yaml-lsp" "typos" "codebook" ];
+    }
+  ];
+};
+};
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;

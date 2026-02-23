@@ -7,6 +7,7 @@ mouse = true
 auto-format = true
 auto-pairs = true
 auto-completion = true
+idle-timeout = 200
 
 [editor.auto-save]
 focus-lost = true
@@ -24,6 +25,10 @@ render = true
 "A-l" = ":bn"
 
 # --- LEFT HAND: ACTIONS ---
+"q" = "open_above"              # Top Pinky: New line above + Insert
+"w" = "open_below"
+"e" = "undo"                    # Top Middle: Undo last change
+"r" = "redo"                    # Top Index: Redo last change
 "f" = ["extend_line_below", "extend_to_line_bounds"] # Left Index: Select Line (Old 'x')
 "d" = "delete_selection"                            # Left Middle: Delete
 "s" = "change_selection"                            # Left Ring: Change (Old 'c')
@@ -35,18 +40,27 @@ render = true
 "h" = "move_prev_word_start"      # Right Inner Index: Word Back (Old 'b')
 "j" = "find_next_char"            # Right Index: Find Char (Old 'f')
 ";" = "move_next_word_end"        # Right Pinky: Word End (Old 'e')
+# --- RIGHT HAND: TIME TRAVEL (Top Row) --- 
+"u" = "jump_backward"       # Top Inner: Go back in history
+"i" = "jump_forward"        # Top Index: Go forward in history
 
 # --- THE CORRECTED 'K' BINDING ---
 "k" = "select_mode"               # Middle: Opens the Match/Surround menu (Old 'm')
 
 # --- RIGHT HAND TOP/BOTTOM ---
-"o" = "find_till_char"            # Right Top Mid: Find Till (Old 't')
-"p" = "repeat_last_motion"        # Right Top Pinky: Repeat (Old 'Alt-.')
+"o" = "save_selection"            # Top Middle: Set Manual Mark/Anchor
+"p" = "search"                    # Search to jump far away
 "n" = "goto_line_start"           # Right Bottom Inner: Home
 "m" = "goto_line_end"             # Right Bottom Index: End
+"N" = "search_prev"             # Upper: Previous match
+"M" = "search_next"             # Upper: Next match
+# --- RIGHT HAND: FAST TRAVEL (Bottom Row) ---
+"," = "half_page_up"
+"." = "half_page_down"
 
 # --- SHIFTED POWER MOVES ---
 "F" = ["extend_line_above", "extend_to_line_bounds"]
 "L" = "move_next_long_word_start"
 "H" = "move_prev_long_word_start"
 "J" = "find_prev_char"
+  
