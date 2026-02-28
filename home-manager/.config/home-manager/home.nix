@@ -3,8 +3,8 @@
 {
   # Home Manager needs a bit of information about you and the paths it should
   # manage.
-  home.username = "rotimi";
-  home.homeDirectory = "/home/rotimi";
+  home.username = "rawonria";
+  home.homeDirectory = "/home/rawonria";
 
   # This value determines the Home Manager release that your configuration is
   # compatible with. This helps avoid breakage when a new Home Manager release
@@ -24,7 +24,6 @@
     # my work flow packages
       pkgs.pdm
       pkgs.ruff
-      # pkgs.astral-ty  # Use pkgs.ty if that is how it is named in your channel
       pkgs.nodePackages.bash-language-server
       pkgs.shellcheck
       pkgs.yaml-language-server
@@ -38,10 +37,10 @@
       pkgs.tlrc
       pkgs.man
       pkgs.stow
-      pkgs.aider-chat-full      # The autonomous CLI agent
+      # pkgs.aider-chat-full      # The autonomous CLI agent
       pkgs.uv              # Fast python runner (to manage local vector DBs)
     #coding language
-      (pkgs.python3.withPackages (ps: with ps; [
+      (pkgs.python312.withPackages (ps: with ps; [
     # List your packages here
       numpy
       pandas
@@ -56,17 +55,14 @@
       #infrasctruture management
       pkgs.docker
       pkgs.tenv
-      
     # Code quality
       pkgs.ruff
       pkgs.ty
       pkgs.mypy
       pkgs.shellcheck
       pkgs.go-tools
-
     # Package management
       pkgs.pdm
-
     #clipboard manager
       pkgs.xclip      
       
@@ -116,77 +112,43 @@
   #  /etc/profiles/per-user/rotimi-dev/etc/profile.d/hm-session-vars.sh
   #
   #
-# 1. Enable NVIDIA drivers
-  nixpkgs.config.allowUnfree = true; 
-  # Enable Ollama as a user service
-  # services.ollama = {
-  #   enable = true;
-  #   package = pkgs.ollama-cuda;
-  #   acceleration = "cuda"; # Or "rocm" if you're on AMD
-  # };
-  # services.ollama = {
-  #     enable = true;
-        
-  #     # 2. Configure GPU & Context for your 16GB VRAM
-  #     environmentVariables = {
-  #       OLLAMA_FLASH_ATTENTION = "1";
-  #       OLLAMA_KV_CACHE_TYPE = "q4_0";      # Compresses context to fit more in VRAM
-  #       OLLAMA_NUM_PARALLEL = "2";         # Lets the agent do two things at once
-  #       # Set your high-priority path if needed
-  #       PATH = "$HOME/.local/bin:$PATH";
-  #     };
-  #   };
+  # 1. Define and export your environment variables
+  home.sessionVariables = let
+    certPath = "/etc/ssl/certs/ca-certificates.crt";
+    certDir = "/etc/ssl/certs/";
+  in {
+    SSL_CERT_FILE = certPath;
+    SSL_CERT_DIR = certDir;
+    CURL_CA_BUNDLE = certPath;
+    cacert = certPath;
+    REQUESTS_CA_BUNDLE = certPath;
+    NODE_EXTRA_CA_CERTS = certPath;
+  };
 
-  # Don't forget to force the local host in session variables so you never need an API key
-  home.sessionVariables = {
-    
-    OLLAMA_KEEP_ALIVE = "60m"; # Keeps the model in VRAM for 1 hour
-    OLLAMA_API_BASE = "http://127.0.0.1:11434";
-    # Default to the 'coder' model if you just type 'aider' without arguments
-    AIDER_MODEL = "ollama_chat/deepseek-coder-v2:lite";
-    LD_LIBRARY_PATH = "/usr/lib/nvidia";
-    OLLAMA_FLASH_ATTENTION = "1";
-    OLLAMA_KV_CACHE_TYPE = "q4_0";      # Compresses context to fit more in VRAM
-    OLLAMA_NUM_PARALLEL = "2";         # Lets the agent do two things at once
-    # Set your high-priority path if needed
-    PATH = "$HOME/.local/bin:$PATH";
+  # 2. Add Klocwork directories to your PATH
+  home.sessionPath = [
+    "/opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin"
+    "/opt/klocwork/buildtools/kwbuildtools/bin"
+  ];
 
-    };
+  # ... the rest of your configuration ...
 
- programs.bash = {
+
+  programs.bash = {
   enable = true;
   # This line is the "safety net" that prevents the command not found error
   bashrcExtra = ''
     if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
       . "$HOME/.nix-profile/etc/profile.d/nix.sh"
     fi
-    export PATH="/home/rotimi/.opencode/bin:$PATH"
-    export PATH="/usr/bin/ollama:$PATH"
   ''; 
 
  shellAliases = {
-  # 1. THE DAILY DRIVER (DeepSeek V2 Lite)
-  # Best balance of smarts and context memory. Fits 100% in your VRAM.
-  # Uses 'diff' format for speed, but switches to 'whole' if the edit is massive.
-  scripter = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format diff --no-stream --cache-prompts --map-tokens 1024 ";
-  coder = "aider --timeout 1200 --model ollama_chat/deepseek-verbose --model-metadata-file ~/.aider.model.metadata.json --edit-format whole --no-stream --cache-prompts --map-tokens 1024";
-  # If you work on a HUGE existing codebase, use this one (Lowers map size to save memory)
-  legacy-coder = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format whole --no-stream --map-tokens 512";
-  
-
-  # 2. THE ARCHITECT (Qwen 2.5 32B)
-  # Maximum intelligence for hard problems. 
-  # WARNING: This will spill slightly into System RAM (~19GB total), so it will be slower.
-  # We use '--no-stream' strictly here to prevent stuttering while it thinks.
-  architect = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:32b --edit-format diff --no-stream --map-tokens 0";
-
-  # 3. THE SPEED DEMON (Qwen 2.5 14B)
-  # Instant replies. Use this for quick scripts, css fixes, or small refactors.
-  # It leaves massive room for context, so we enable a huge repo map.
-
-  fastscripter = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format diff --no-stream --map-tokens 2048";
-  fastcoder = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format whole --no-stream --map-tokens 2048";
-
+    kwcmd = "ls -r /opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin";
+    kwtools = "ls  -r  /opt/klocwork/buildtools/kwbuildtools/bin";
+    xcopy = "xclip -selection clipboard";
+    xpaste = "xclip -o"; 
+    ruff-strict = "ruff check --extend-select ANN";
   };
   };
 
@@ -197,8 +159,8 @@ programs.zellij = {
 
 programs.git = {
 enable = true;
-settings.user.name= "Rotimi";
-settings.user.email = "olarotimi@protonmail.com";
+settings.user.name= "rawonria";
+settings.user.email = "rawonria@jaguarlandrover.com";
 # alias = {
 
 # };
