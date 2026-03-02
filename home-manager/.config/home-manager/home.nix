@@ -123,6 +123,7 @@
     cacert = certPath;
     REQUESTS_CA_BUNDLE = certPath;
     NODE_EXTRA_CA_CERTS = certPath;
+    EDITOR = "hx";
   };
 
   # 2. Add Klocwork directories to your PATH
