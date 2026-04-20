@@ -69,7 +69,9 @@
 
     #clipboard manager
       pkgs.xclip      
-      
+    #Terminal Image
+      pkgs.fzf
+      pkgs.chafa
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
     # # parentheses. Maybe you want to install Nerd Fonts with a limited number of
@@ -172,13 +174,10 @@
   coder = "aider --timeout 1200 --model ollama_chat/deepseek-verbose --model-metadata-file ~/.aider.model.metadata.json --edit-format whole --no-stream --cache-prompts --map-tokens 1024";
   # If you work on a HUGE existing codebase, use this one (Lowers map size to save memory)
   legacy-coder = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format whole --no-stream --map-tokens 512";
-  
-
-  # 2. THE ARCHITECT (Qwen 2.5 32B)
-  # Maximum intelligence for hard problems. 
-  # WARNING: This will spill slightly into System RAM (~19GB total), so it will be slower.
-  # We use '--no-stream' strictly here to prevent stuttering while it thinks.
-  architect = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:32b --edit-format diff --no-stream --map-tokens 0";
+  #Xclip
+  xcopy = "xclip -selection clipboard";
+  xpaste = "xclip -o"; 
+rchitect = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:32b --edit-format diff --no-stream --map-tokens 0";
 
   # 3. THE SPEED DEMON (Qwen 2.5 14B)
   # Instant replies. Use this for quick scripts, css fixes, or small refactors.

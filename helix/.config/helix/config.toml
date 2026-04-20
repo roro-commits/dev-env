@@ -9,6 +9,7 @@ auto-pairs = true
 auto-completion = true
 idle-timeout = 200
 
+
 [editor.auto-save]
 focus-lost = true
 
@@ -16,10 +17,16 @@ focus-lost = true
 character = "╎"
 render = true
 
-[keys.normal]
-# The "Space" Leader setup
-"space" = { "f" = "file_picker", "w" = ":w", "q" = ":q" }
+[keys.normal.space]
+f = "file_picker"
+w = ":w"
+q = ":q"
+"/" = [":set auto-info false",":set-option inline-diagnostics.cursor-line disable", ":theme writing"]
+k = [":set auto-info true", ":theme bogster_light"]
+i = ":insert-output ~/.config/helix/scripts/pick-image.sh"
+d = "hover"
 
+[keys.normal]
 # Navigation between Helix tabs (matches Zellij movement)
 "A-h" = ":bp"
 "A-l" = ":bn"
@@ -34,7 +41,6 @@ render = true
 "s" = "change_selection"                            # Left Ring: Change (Old 'c')
 "a" = "insert_mode"                                 # Left Pinky: Insert (Old 'i')
 "c" = "append_mode"                                 # Left Inner Index: Append (Old 'a')
-
 # --- RIGHT HAND: NAVIGATION ---
 "l" = "move_next_word_start"      # Right Ring: Word Forward (Old 'w')
 "h" = "move_prev_word_start"      # Right Inner Index: Word Back (Old 'b')
