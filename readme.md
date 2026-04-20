@@ -7,7 +7,7 @@ stow -v -t ~ helix zellij home-manager
 # 🛠️ Totem Dev Environment
 
 This repository contains an optimized workflow for the **GEIGEIGEIST Totem** (38-key split keyboard), integrating **Helix** and **Zellij** via **Home Manager**.
-![image](./dev-env/imgs/TOTEM_black_perspective.jpg)
+![image](https://github.com/GEIGEIGEIST/TOTEM/blob/main/docs/images/TOTEM_black_perspective.jpg)
 ## ⌨️ Keyboard Strategy: Home Row Mods
 To navigate efficiently on 38 keys, this setup relies on **Home Row Mods** (configured in QMK/ZMK):
 * **Hold `S`**: `Alt` (Zellij & Tab navigation)
