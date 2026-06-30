@@ -1,5 +1,20 @@
 { config, pkgs, ... }:
 
+let
+  efmYamlConfig = pkgs.writeText "efm-yaml.yaml" ''
+    version: 2
+    languages:
+      yaml:
+        - lint-command: 'yamllint -f parsable -'
+          lint-stdin: true
+          lint-formats:
+            - '%f:%l:%c: [%trror] %m'
+            - '%f:%l:%c: [%tarning] %m'
+        - format-command: 'prettier --parser yaml'
+          format-stdin: true
+  '';
+in
+
 {
   # Home Manager needs a bit of information about you and the paths it should
   # manage.
@@ -27,6 +42,9 @@
       pkgs.nodePackages.bash-language-server
       pkgs.shellcheck
       pkgs.yaml-language-server
+      pkgs.efm-langserver
+      pkgs.gitlab-ci-ls
+      pkgs.glab
       pkgs.yamllint
       pkgs.marksman
       pkgs.typos-lsp
@@ -45,10 +63,17 @@
       numpy
       pandas
       requests
+      python-gitlab
       black
+      pyyaml
       ipython
       openpyxl
       virtualenv
+      google-auth
+      google-cloud-core      # The core helper library
+      google-cloud-storage   # For Google Cloud Storage
+      google-cloud-bigquery  # For BigQuery
+      google-cloud-compute   # For Compute Engine
       ]))
       pkgs.go
       pkgs.ansible
@@ -116,6 +141,7 @@
   home.sessionVariables = let
     certPath = "/etc/ssl/certs/ca-certificates.crt";
     certDir = "/etc/ssl/certs/";
+    
   in {
     SSL_CERT_FILE = certPath;
     SSL_CERT_DIR = certDir;
@@ -124,6 +150,8 @@
     REQUESTS_CA_BUNDLE = certPath;
     NODE_EXTRA_CA_CERTS = certPath;
     EDITOR = "hx";
+    vault-secret-admin = "hello";
+    drm-100-temp = "hello";
   };
 
   # 2. Add Klocwork directories to your PATH
@@ -145,16 +173,36 @@
     if [[ -z "$ZELLIJ" ]]; then
       zellij --layout strider
     fi
-  ''; 
+  '';
+
 
  shellAliases = {
     kwcmd = "ls -r /opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin";
     kwtools = "ls  -r  /opt/klocwork/buildtools/kwbuildtools/bin";
     xcopy = "xclip -selection clipboard";
     xpaste = "xclip -o"; 
+    python  = "py";
     ruff-strict = "ruff check --extend-select ANN";
+    mssql= "docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P $MSSQL_PW -C";
   };
+};
+  
+programs.ruff = {
+  enable = true;
+  settings = {
+    lint = {
+      # This is where you enable the "B" (Bugbear) rules
+      select = [
+        "E" # pycodestyle
+        "F" # Pyflakes
+        "B" # flake8-bugbear logic checks
+        "I" # isort
+        "ANN"# Annotation
+      ];
+      ignore = [ "E501" ]; # Example: ignore line length
+    };
   };
+};
 
 programs.zellij = {
   enable = true;
@@ -170,48 +218,64 @@ settings.user.email = "rawonria@jaguarlandrover.com";
 # };
 };
 
-  programs.helix = {
+programs.helix = {
   enable = true;
   languages = {
-  language-server = {
-    # Python
-    ty = { command = "ty"; args = ["server"]; };
-    ruff = { command = "ruff"; args = ["server"]; };
+    language-server = {
+      # Python
+      ty = { command = "ty"; args = ["server"]; };
+      ruff = { command = "ruff"; args = ["server"]; };
     
-    # Spellcheckers (codebook: serve, typos: --stdio)
-    codebook = { command = "codebook-lsp"; args = ["serve"]; };
-    typos = { command = "typos-lsp"; args = ["--stdio"]; };
+      # Spellcheckers (codebook: serve, typos: --stdio)
+      codebook = { command = "codebook-lsp"; args = ["serve"]; };
+      typos = { command = "typos-lsp"; args = ["--stdio"]; };
     
-    # Bash, Markdown, and YAML
-    bash-lsp = { command = "bash-language-server"; args = ["start"]; };
-    marksman = { command = "marksman"; args = ["server"]; };
-    yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
-  };
+      #YAML Lint
+      efm-yaml = {
+      command = "efm-langserver";
+      args = [ "-c" "${efmYamlConfig}" ];
+      };
+      
+      #YAMl Gitlab CI
+      gitlab-ci-ls = {
+        command = "gitlab-ci-ls";
+        config = {
+          log_path = "/tmp/gitlab-ci-ls.log";
+          cache = "/tmp/gitlab-ci-ls-cache";
+        };
+      };
+      
+      # Bash, Markdown, and YAML
+      bash-lsp = { command = "bash-language-server"; args = ["start"]; };
+      marksman = { command = "marksman"; args = ["server"]; };
+      yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
+      
+    };
 
-  language = [
-    {
-      name = "python";
-      file-types = ["py" "pyi"]; 
-      language-servers = [ "ty" "ruff" "typos" "codebook" ];
-      auto-format = true;
-    }
-    {
-      name = "bash";
-      file-types = ["sh" "bash" ".bashrc" ".bash_profile"]; 
-      language-servers = [ "bash-lsp" "typos" "codebook" ];
-    }
-    {
-      name = "markdown";
-      file-types = ["md" "markdown"];
-      language-servers = [ "marksman" "typos" "codebook" ];
-    }
-    {
-      name = "yaml";
-      file-types = ["yml" "yaml"];
-      language-servers = [ "yaml-lsp" "typos" "codebook" ];
-    }
-  ];
-};
+    language = [
+      {
+        name = "python";
+        file-types = ["py" "pyi"]; 
+        language-servers = [ "ty" "ruff" "typos" "codebook" ];
+        auto-format = true;
+      }
+      {
+        name = "bash";
+        file-types = ["sh" "bash" ".bashrc" ".bash_profile"]; 
+        language-servers = [ "bash-lsp" "typos" "codebook" ];
+      }
+      {
+        name = "markdown";
+        file-types = ["md" "markdown"];
+        language-servers = [ "marksman" "typos" "codebook" ];
+      }
+      {
+        name = "yaml";
+        file-types = ["yml" "yaml"];
+        language-servers = [ "yaml-lsp" "typos" "codebook" "efm-yamllint" "gitlab-ci-ls" ];
+      }
+    ];
+  };
 };
 
   # Let Home Manager install and manage itself.
