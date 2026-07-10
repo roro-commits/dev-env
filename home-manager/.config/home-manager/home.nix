@@ -46,6 +46,9 @@ in
       pkgs.gitlab-ci-ls
       pkgs.glab
       pkgs.yamllint
+    # -----------------------
+      pkgs.mado #markdown linter
+      pkgs.rumdl #markdown formater/linter
       pkgs.marksman
       pkgs.typos-lsp
       pkgs.codebook # Ensure this is available in your nixpkgs/overlay
@@ -173,6 +176,7 @@ in
     if [[ -z "$ZELLIJ" ]]; then
       zellij --layout strider
     fi
+    export MSSQL_PW='YourStrong!Passw0rd'
   '';
 
 
