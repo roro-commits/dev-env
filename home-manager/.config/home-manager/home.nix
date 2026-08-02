@@ -249,6 +249,23 @@ programs.ruff = {
   };
 };
 
+programs.ruff = {
+  enable = true;
+  settings = {
+    lint = {
+      # This is where you enable the "B" (Bugbear) rules
+      select = [
+        "E" # pycodestyle
+        "F" # Pyflakes
+        "B" # flake8-bugbear logic checks
+        "I" # isort
+        "ANN"# Annotation
+      ];
+      ignore = [ "E501" ]; # Example: ignore line length
+    };
+  };
+};
+
 programs.zellij = {
   enable = true;
   enableBashIntegration = true;
