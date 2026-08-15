@@ -40,6 +40,8 @@ in
       pkgs.pdm
       pkgs.ruff
       pkgs.nodePackages.bash-language-server
+      # pkgs.astral-ty  # Use pkgs.ty if that is how it is named in your channel
+      pkgs. bash-language-server
       pkgs.shellcheck
       pkgs.yaml-language-server
       pkgs.efm-langserver
@@ -211,7 +213,7 @@ programs.ruff = {
 
 programs.zellij = {
   enable = true;
-  enableBashIntegration = true;
+  # enableBashIntegration = true;
 };
 
 programs.git = {
