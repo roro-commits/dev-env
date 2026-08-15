@@ -1,10 +1,25 @@
 { config, pkgs, ... }:
 
+let
+  efmYamlConfig = pkgs.writeText "efm-yaml.yaml" ''
+    version: 2
+    languages:
+      yaml:
+        - lint-command: 'yamllint -f parsable -'
+          lint-stdin: true
+          lint-formats:
+            - '%f:%l:%c: [%trror] %m'
+            - '%f:%l:%c: [%tarning] %m'
+        - format-command: 'prettier --parser yaml'
+          format-stdin: true
+  '';
+in
+
 {
   # Home Manager needs a bit of information about you and the paths it should
   # manage.
-  home.username = "rotimi";
-  home.homeDirectory = "/home/rotimi";
+  home.username = "rawonria";
+  home.homeDirectory = "/home/rawonria";
 
   # This value determines the Home Manager release that your configuration is
   # compatible with. This helps avoid breakage when a new Home Manager release
@@ -24,11 +39,16 @@
     # my work flow packages
       pkgs.pdm
       pkgs.ruff
-      # pkgs.astral-ty  # Use pkgs.ty if that is how it is named in your channel
       pkgs.nodePackages.bash-language-server
       pkgs.shellcheck
       pkgs.yaml-language-server
+      pkgs.efm-langserver
+      pkgs.gitlab-ci-ls
+      pkgs.glab
       pkgs.yamllint
+    # -----------------------
+      pkgs.mado #markdown linter
+      pkgs.rumdl #markdown formater/linter
       pkgs.marksman
       pkgs.typos-lsp
       pkgs.codebook # Ensure this is available in your nixpkgs/overlay
@@ -38,35 +58,39 @@
       pkgs.tlrc
       pkgs.man
       pkgs.stow
-      pkgs.aider-chat-full      # The autonomous CLI agent
+      # pkgs.aider-chat-full      # The autonomous CLI agent
       pkgs.uv              # Fast python runner (to manage local vector DBs)
     #coding language
-      (pkgs.python3.withPackages (ps: with ps; [
+      (pkgs.python312.withPackages (ps: with ps; [
     # List your packages here
       numpy
       pandas
       requests
+      python-gitlab
       black
+      pyyaml
       ipython
       openpyxl
       virtualenv
+      google-auth
+      google-cloud-core      # The core helper library
+      google-cloud-storage   # For Google Cloud Storage
+      google-cloud-bigquery  # For BigQuery
+      google-cloud-compute   # For Compute Engine
       ]))
       pkgs.go
       pkgs.ansible
       #infrasctruture management
       pkgs.docker
       pkgs.tenv
-      
     # Code quality
       pkgs.ruff
       pkgs.ty
       pkgs.mypy
       pkgs.shellcheck
       pkgs.go-tools
-
     # Package management
       pkgs.pdm
-
     #clipboard manager
       pkgs.xclip      
     #Terminal Image
@@ -118,76 +142,72 @@
   #  /etc/profiles/per-user/rotimi-dev/etc/profile.d/hm-session-vars.sh
   #
   #
-# 1. Enable NVIDIA drivers
-  nixpkgs.config.allowUnfree = true; 
-  # Enable Ollama as a user service
-  # services.ollama = {
-  #   enable = true;
-  #   package = pkgs.ollama-cuda;
-  #   acceleration = "cuda"; # Or "rocm" if you're on AMD
-  # };
-  # services.ollama = {
-  #     enable = true;
-        
-  #     # 2. Configure GPU & Context for your 16GB VRAM
-  #     environmentVariables = {
-  #       OLLAMA_FLASH_ATTENTION = "1";
-  #       OLLAMA_KV_CACHE_TYPE = "q4_0";      # Compresses context to fit more in VRAM
-  #       OLLAMA_NUM_PARALLEL = "2";         # Lets the agent do two things at once
-  #       # Set your high-priority path if needed
-  #       PATH = "$HOME/.local/bin:$PATH";
-  #     };
-  #   };
-
-  # Don't forget to force the local host in session variables so you never need an API key
-  home.sessionVariables = {
+  # 1. Define and export your environment variables
+ 
+ home.sessionVariables = let
+    certPath = "/etc/ssl/certs/ca-certificates.crt";
+    certDir = "/etc/ssl/certs/";
     
-    OLLAMA_KEEP_ALIVE = "60m"; # Keeps the model in VRAM for 1 hour
-    OLLAMA_API_BASE = "http://127.0.0.1:11434";
-    # Default to the 'coder' model if you just type 'aider' without arguments
-    AIDER_MODEL = "ollama_chat/deepseek-coder-v2:lite";
-    LD_LIBRARY_PATH = "/usr/lib/nvidia";
-    OLLAMA_FLASH_ATTENTION = "1";
-    OLLAMA_KV_CACHE_TYPE = "q4_0";      # Compresses context to fit more in VRAM
-    OLLAMA_NUM_PARALLEL = "2";         # Lets the agent do two things at once
-    # Set your high-priority path if needed
-    PATH = "$HOME/.local/bin:$PATH";
+  in {
+    SSL_CERT_FILE = certPath;
+    SSL_CERT_DIR = certDir;
+    CURL_CA_BUNDLE = certPath;
+    cacert = certPath;
+    REQUESTS_CA_BUNDLE = certPath;
+    NODE_EXTRA_CA_CERTS = certPath;
+    EDITOR = "hx";
+    vault-secret-admin = "hello";
+    drm-100-temp = "hello";
+  };
 
-    };
+  # 2. Add Klocwork directories to your PATH
+  home.sessionPath = [
+    "/opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin"
+    "/opt/klocwork/buildtools/kwbuildtools/bin"
+  ];
 
- programs.bash = {
+  # ... the rest of your configuration ...
+
+  programs.bash = {
   enable = true;
   # This line is the "safety net" that prevents the command not found error
   bashrcExtra = ''
     if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
       . "$HOME/.nix-profile/etc/profile.d/nix.sh"
     fi
-    export PATH="/home/rotimi/.opencode/bin:$PATH"
-    export PATH="/usr/bin/ollama:$PATH"
-  ''; 
+    if [[ -z "$ZELLIJ" ]]; then
+      zellij --layout strider
+    fi
+    export MSSQL_PW='YourStrong!Passw0rd'
+  '';
 
  shellAliases = {
-  # 1. THE DAILY DRIVER (DeepSeek V2 Lite)
-  # Best balance of smarts and context memory. Fits 100% in your VRAM.
-  # Uses 'diff' format for speed, but switches to 'whole' if the edit is massive.
-  scripter = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format diff --no-stream --cache-prompts --map-tokens 1024 ";
-  coder = "aider --timeout 1200 --model ollama_chat/deepseek-verbose --model-metadata-file ~/.aider.model.metadata.json --edit-format whole --no-stream --cache-prompts --map-tokens 1024";
-  # If you work on a HUGE existing codebase, use this one (Lowers map size to save memory)
-  legacy-coder = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format whole --no-stream --map-tokens 512";
-  #Xclip
-  xcopy = "xclip -selection clipboard";
-  xpaste = "xclip -o"; 
-rchitect = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:32b --edit-format diff --no-stream --map-tokens 0";
-
-  # 3. THE SPEED DEMON (Qwen 2.5 14B)
-  # Instant replies. Use this for quick scripts, css fixes, or small refactors.
-  # It leaves massive room for context, so we enable a huge repo map.
-
-  fastscripter = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format diff --no-stream --map-tokens 2048";
-  fastcoder = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format whole --no-stream --map-tokens 2048";
-
+    kwcmd = "ls -r /opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin";
+    kwtools = "ls  -r  /opt/klocwork/buildtools/kwbuildtools/bin";
+    xcopy = "xclip -selection clipboard";
+    xpaste = "xclip -o"; 
+    python  = "py";
+    ruff-strict = "ruff check --extend-select ANN";
+    mssql= "docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P $MSSQL_PW -C";
   };
+};
+  
+programs.ruff = {
+  enable = true;
+  settings = {
+    lint = {
+      # This is where you enable the "B" (Bugbear) rules
+      select = [
+        "E" # pycodestyle
+        "F" # Pyflakes
+        "B" # flake8-bugbear logic checks
+        "I" # isort
+        "ANN"# Annotation
+      ];
+      ignore = [ "E501" ]; # Example: ignore line length
+    };
   };
+};
 
 programs.zellij = {
   enable = true;
@@ -196,55 +216,71 @@ programs.zellij = {
 
 programs.git = {
 enable = true;
-settings.user.name= "Rotimi";
-settings.user.email = "olarotimi@protonmail.com";
+settings.user.name= "rawonria";
+settings.user.email = "rawonria@jaguarlandrover.com";
 # alias = {
 
 # };
 };
 
-  programs.helix = {
+programs.helix = {
   enable = true;
   languages = {
-  language-server = {
-    # Python
-    ty = { command = "ty"; args = ["server"]; };
-    ruff = { command = "ruff"; args = ["server"]; };
+    language-server = {
+      # Python
+      ty = { command = "ty"; args = ["server"]; };
+      ruff = { command = "ruff"; args = ["server"]; };
     
-    # Spellcheckers (codebook: serve, typos: --stdio)
-    codebook = { command = "codebook-lsp"; args = ["serve"]; };
-    typos = { command = "typos-lsp"; args = ["--stdio"]; };
+      # Spellcheckers (codebook: serve, typos: --stdio)
+      codebook = { command = "codebook-lsp"; args = ["serve"]; };
+      typos = { command = "typos-lsp"; args = ["--stdio"]; };
     
-    # Bash, Markdown, and YAML
-    bash-lsp = { command = "bash-language-server"; args = ["start"]; };
-    marksman = { command = "marksman"; args = ["server"]; };
-    yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
-  };
+      #YAML Lint
+      efm-yaml = {
+      command = "efm-langserver";
+      args = [ "-c" "${efmYamlConfig}" ];
+      };
+      
+      #YAMl Gitlab CI
+      gitlab-ci-ls = {
+        command = "gitlab-ci-ls";
+        config = {
+          log_path = "/tmp/gitlab-ci-ls.log";
+          cache = "/tmp/gitlab-ci-ls-cache";
+        };
+      };
+      
+      # Bash, Markdown, and YAML
+      bash-lsp = { command = "bash-language-server"; args = ["start"]; };
+      marksman = { command = "marksman"; args = ["server"]; };
+      yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
+      
+    };
 
-  language = [
-    {
-      name = "python";
-      file-types = ["py" "pyi"]; 
-      language-servers = [ "ty" "ruff" "typos" "codebook" ];
-      auto-format = true;
-    }
-    {
-      name = "bash";
-      file-types = ["sh" "bash" ".bashrc" ".bash_profile"]; 
-      language-servers = [ "bash-lsp" "typos" "codebook" ];
-    }
-    {
-      name = "markdown";
-      file-types = ["md" "markdown"];
-      language-servers = [ "marksman" "typos" "codebook" ];
-    }
-    {
-      name = "yaml";
-      file-types = ["yml" "yaml"];
-      language-servers = [ "yaml-lsp" "typos" "codebook" ];
-    }
-  ];
-};
+    language = [
+      {
+        name = "python";
+        file-types = ["py" "pyi"]; 
+        language-servers = [ "ty" "ruff" "typos" "codebook" ];
+        auto-format = true;
+      }
+      {
+        name = "bash";
+        file-types = ["sh" "bash" ".bashrc" ".bash_profile"]; 
+        language-servers = [ "bash-lsp" "typos" "codebook" ];
+      }
+      {
+        name = "markdown";
+        file-types = ["md" "markdown"];
+        language-servers = [ "marksman" "typos" "codebook" ];
+      }
+      {
+        name = "yaml";
+        file-types = ["yml" "yaml"];
+        language-servers = [ "yaml-lsp" "typos" "codebook" "efm-yamllint" "gitlab-ci-ls" ];
+      }
+    ];
+  };
 };
 
   # Let Home Manager install and manage itself.
