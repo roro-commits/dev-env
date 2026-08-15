@@ -93,7 +93,9 @@ in
       pkgs.pdm
     #clipboard manager
       pkgs.xclip      
-      
+    #Terminal Image
+      pkgs.fzf
+      pkgs.chafa
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
     # # parentheses. Maybe you want to install Nerd Fonts with a limited number of
@@ -141,7 +143,8 @@ in
   #
   #
   # 1. Define and export your environment variables
-  home.sessionVariables = let
+ 
+ home.sessionVariables = let
     certPath = "/etc/ssl/certs/ca-certificates.crt";
     certDir = "/etc/ssl/certs/";
     
@@ -165,7 +168,6 @@ in
 
   # ... the rest of your configuration ...
 
-
   programs.bash = {
   enable = true;
   # This line is the "safety net" that prevents the command not found error
@@ -178,7 +180,6 @@ in
     fi
     export MSSQL_PW='YourStrong!Passw0rd'
   '';
-
 
  shellAliases = {
     kwcmd = "ls -r /opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin";

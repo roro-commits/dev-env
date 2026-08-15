@@ -1,0 +1,19 @@
+"ui.background" = { bg = "#000000" }
+"ui.text"       = { fg = "#FFFFFF" }
+"ui.cursor"     = { fg = "#000000", bg = "#FFFFFF" }
+"ui.cursor.primary" = { fg = "#000000", bg = "#FFFFFF" }
+"ui.linenr"     = { fg = "#333333" }
+"ui.linenr.selected" = { fg = "#555555" }
+"ui.statusline" = { fg = "#444444", bg = "#111111" }
+"ui.statusline.inactive" = { fg = "#333333", bg = "#0A0A0A" }
+"ui.selection"  = { bg = "#222222" }
+"ui.popup"      = { bg = "#0D0D0D" }
+"ui.window"     = { fg = "#222222" }
+"ui.help"       = { bg = "#0D0D0D", fg = "#AAAAAA" }
+"comment"       = { fg = "#555555" }
+
+"markup.heading"  = { fg = "#666666", modifiers = ["bold"] }
+"markup.bold"     = { fg = "#FFFFFF", modifiers = ["bold"] }
+"markup.italic"   = { fg = "#CCCCCC", modifiers = ["italic"] }
+"markup.link.url" = { fg = "#555555" }
+"markup.raw"      = { fg = "#888888" } 

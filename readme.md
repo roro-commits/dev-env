@@ -1,13 +1,13 @@
-
-use stow to link to .config
-
-stow -v -t ~ helix zellij home-manager
-
+## Hello world
+I built this developer environment to codify my setup so I can get running on any Linux system without manually configuring everything from memory. Nix Home Manager handles that for me — one command and I'm back to work exactly where I left off.
+My daily driver is the GEIGEIGEIST Totem, a 38-key split keyboard. It works for me and I plan to experiment with its design down the line.
+For editing I use Helix — simple, distraction free, no bloat, and as fast as the terminal it runs in. For my terminal layout I use Zellij, battery packed and written in Rust.
+That's the setup. It does what I need it to do and stays out of the way the rest of the time.
 
 # 🛠️ Totem Dev Environment
 
 This repository contains an optimized workflow for the **GEIGEIGEIST Totem** (38-key split keyboard), integrating **Helix** and **Zellij** via **Home Manager**.
-
+![image](https://github.com/GEIGEIGEIST/TOTEM/blob/main/docs/images/TOTEM_black_perspective.jpg)
 ## ⌨️ Keyboard Strategy: Home Row Mods
 To navigate efficiently on 38 keys, this setup relies on **Home Row Mods** (configured in QMK/ZMK):
 * **Hold `S`**: `Alt` (Zellij & Tab navigation)
