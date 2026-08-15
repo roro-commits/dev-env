@@ -42,6 +42,7 @@ in
       pkgs.nodePackages.bash-language-server
       # pkgs.astral-ty  # Use pkgs.ty if that is how it is named in your channel
       pkgs. bash-language-server
+      pkgs.gitlab-ci-ls
       pkgs.shellcheck
       pkgs.yaml-language-server
       pkgs.efm-langserver
@@ -49,6 +50,10 @@ in
       pkgs.glab
       pkgs.yamllint
     # -----------------------
+      pkgs.mado #markdown linter
+      pkgs.rumdl #markdown formater/linter
+      pkgs.marksman
+      # -----------------------
       pkgs.mado #markdown linter
       pkgs.rumdl #markdown formater/linter
       pkgs.marksman
@@ -177,6 +182,7 @@ in
     if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
       . "$HOME/.nix-profile/etc/profile.d/nix.sh"
     fi
+<<<<<<< HEAD
     if [[ -z "$ZELLIJ" ]]; then
       zellij --layout strider
     fi
@@ -191,6 +197,38 @@ in
     python  = "py";
     ruff-strict = "ruff check --extend-select ANN";
     mssql= "docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P $MSSQL_PW -C";
+=======
+    export PATH="/home/rotimi/.opencode/bin:$PATH"
+    export PATH="/usr/bin/ollama:$PATH"
+    
+    if [[ -z "$ZELLIJ" ]]; then
+      zellij --layout strider
+    fi  
+  ''; 
+
+ shellAliases = {
+  # 1. THE DAILY DRIVER (DeepSeek V2 Lite)
+  # Best balance of smarts and context memory. Fits 100% in your VRAM.
+  # Uses 'diff' format for speed, but switches to 'whole' if the edit is massive.
+  scripter = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format diff --no-stream --cache-prompts --map-tokens 1024 ";
+  coder = "aider --timeout 1200 --model ollama_chat/deepseek-verbose --model-metadata-file ~/.aider.model.metadata.json --edit-format whole --no-stream --cache-prompts --map-tokens 1024";
+  # If you work on a HUGE existing codebase, use this one (Lowers map size to save memory)
+  legacy-coder = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format whole --no-stream --map-tokens 512";
+  #Xclip
+  xcopy = "xclip -selection clipboard";
+  xpaste = "xclip -o"; 
+  python  = "py";
+  ruff-strict = "ruff check --extend-select ANN";
+  mssql= "docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P $MSSQL_PW -C";
+
+  # 3. THE SPEED DEMON (Qwen 2.5 14B)
+  # Instant replies. Use this for quick scripts, css fixes, or small refactors.
+  # It leaves massive room for context, so we enable a huge repo map.
+
+  fastscripter = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format diff --no-stream --map-tokens 2048";
+  fastcoder = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format whole --no-stream --map-tokens 2048";
+
+>>>>>>> b3111be (current master)
   };
 };
   
@@ -213,7 +251,7 @@ programs.ruff = {
 
 programs.zellij = {
   enable = true;
-  # enableBashIntegration = true;
+  enableBashIntegration = true;
 };
 
 programs.git = {
@@ -237,6 +275,7 @@ programs.helix = {
       codebook = { command = "codebook-lsp"; args = ["serve"]; };
       typos = { command = "typos-lsp"; args = ["--stdio"]; };
     
+<<<<<<< HEAD
       #YAML Lint
       efm-yaml = {
       command = "efm-langserver";
@@ -258,6 +297,22 @@ programs.helix = {
       yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
       
     };
+=======
+    # Bash, Markdown, and YAML
+    bash-lsp = { command = "bash-language-server"; args = ["start"]; };
+    marksman = { command = "marksman"; args = ["server"]; };
+    yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
+  };
+  
+  #YAMl Gitlab CI
+  gitlab-ci-ls = {
+    command = "gitlab-ci-ls";
+    config = {
+      log_path = "/tmp/gitlab-ci-ls.log";
+      cache = "/tmp/gitlab-ci-ls-cache";
+    };
+  };
+>>>>>>> b3111be (current master)
 
     language = [
       {
