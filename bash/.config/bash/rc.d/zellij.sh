@@ -31,13 +31,24 @@ _zj_attach() {
     local name=$1
 
     if _zj_inside; then
-        # switch-session exists in newer zellij; fall back to telling you how.
+        # Newest zellij switches directly.
         if zellij action switch-session "$name" 2>/dev/null; then
             return 0
         fi
-        echo "zj: already inside session ${ZELLIJ_SESSION_NAME:-?}." >&2
-        echo "    This zellij cannot switch from inside. Detach with Ctrl-o d," >&2
-        echo "    or use the session manager: Ctrl-o w." >&2
+
+        # Older builds cannot, but most can open the session manager plugin,
+        # which switches for you. Better than printing a keybinding.
+        if zellij action launch-or-focus-plugin zellij:session-manager \
+               --floating 2>/dev/null; then
+            echo "zj: this zellij cannot switch directly - opened the session" >&2
+            echo "    manager instead. Pick '$name' there." >&2
+            return 0
+        fi
+
+        echo "zj: inside session ${ZELLIJ_SESSION_NAME:-?}, and this zellij" >&2
+        echo "    ($(zellij --version 2>/dev/null || echo 'version unknown'))" >&2
+        echo "    can neither switch nor open the session manager." >&2
+        echo "    Detach with Ctrl-o d, then: zj $name" >&2
         return 1
     fi
 
@@ -60,8 +71,11 @@ _zj_attach() {
 #>   a session per project means switching context is one command and the
 #>   panes survive closing the terminal
 #>
-#>   run from inside a session it switches rather than nesting, if your
-#>   zellij supports it; otherwise detach first with Ctrl-o d
+#>   from inside a session it switches rather than nesting. how depends on
+#>   your zellij version: newest switches directly, older opens the session
+#>   manager for you, oldest asks you to detach first (Ctrl-o d).
+#>   zellij --version to see which you have - it can differ per machine
+#>   if your nixpkgs pins differ
 zj() {
     command -v zellij >/dev/null || { echo "zj: zellij not installed" >&2; return 1; }
 

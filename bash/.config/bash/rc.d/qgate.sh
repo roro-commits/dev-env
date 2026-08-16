@@ -127,6 +127,15 @@ qdoctor() {
         fi
     done
 
-    (( missing )) && echo "fix the above, or comment out the matching hook"
+    if (( missing )); then
+        case ":$PATH:" in
+            *":$HOME/.local/bin:"*) ;;
+            *) echo
+               echo "  \$HOME/.local/bin is not on PATH - the pc-* and g-*"
+               echo "  scripts are linked but nothing can find them:"
+               echo "    home.sessionPath = [ \"\$HOME/.local/bin\" ];  in home.nix" ;;
+        esac
+        echo "fix the above, or comment out the matching hook"
+    fi
     return $missing
 }

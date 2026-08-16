@@ -62,7 +62,23 @@ done
 # which lets it coexist with home-manager in ~/.config.
 stow --no-folding -R -v -t "$HOME" "${packages[@]}" || exit 1
 
+# The scripts are useless if nothing searches for them, and this is the
+# failure that looks like "missing" when the symlinks are plainly there.
+path_ok=0
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) path_ok=1 ;;
+esac
+
 echo
+if [ "$path_ok" -eq 0 ]; then
+    echo "WARNING: \$HOME/.local/bin is not on PATH, so the pc-* and g-*"
+    echo "         scripts will report as missing even though they linked."
+    echo
+    echo "  now:       export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo "  for good:  home.sessionPath = [ \"\$HOME/.local/bin\" ];  in home.nix"
+    echo
+fi
+
 echo "linked. Two things left:"
 echo
 echo "  1. home.nix, inside programs.bash:"
