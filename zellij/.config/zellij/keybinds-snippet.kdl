@@ -1,0 +1,72 @@
+// Paste into the keybinds block of ~/.config/zellij/config.kdl
+//
+// Each opens a floating pane, runs one thing, and waits for a key so short
+// output does not flash past. -ilc loads your rc files, so the dev-env
+// functions exist inside the pane.
+//
+// Alt is used because Ctrl is already crowded in both zellij and helix.
+
+keybinds {
+    // Ctrl-q quits zellij outright, killing every pane in the session and
+    // anything unsaved in them. It sits next to Ctrl-w and Ctrl-a. Unbind it
+    // and detach instead: Ctrl-o d leaves the session running.
+    //
+    // If you want a way out, bind it somewhere deliberate:
+    //   bind "Ctrl Alt q" { Quit; }
+    unbind "Ctrl q"
+
+    shared_except "locked" {
+
+        // status: where am I, did it pass, what broke
+        bind "Alt g" {
+            Run "bash" "-ilc" "gnow; printf '\n[key] '; read -rsn1" {
+                floating true
+                name "gnow"
+            }
+        }
+
+        // today's numbers
+        bind "Alt b" {
+            Run "bash" "-ilc" "board; printf '[key] '; read -rsn1" {
+                floating true
+                name "board"
+            }
+        }
+
+        // the hub: MRs with pipeline status, everything links off it
+        bind "Alt m" {
+            Run "bash" "-ilc" "gmr" {
+                floating true
+                pinned true
+                name "merge requests"
+                close_on_exit true
+            }
+        }
+
+        // the pipeline browser - stays open, it is interactive
+        bind "Alt p" {
+            Run "bash" "-ilc" "gpipe" {
+                floating true
+                name "pipelines"
+                close_on_exit true
+            }
+        }
+
+        // run the quality gate over the branch before pushing
+        bind "Alt q" {
+            Run "bash" "-ilc" "qrun -b; printf '\n[key] '; read -rsn1" {
+                floating true
+                name "qrun"
+            }
+        }
+
+        // the command menu, if you forget a name
+        bind "Alt d" {
+            Run "bash" "-ilc" "m" {
+                floating true
+                name "menu"
+                close_on_exit true
+            }
+        }
+    }
+}

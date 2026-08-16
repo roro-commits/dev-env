@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# g-clean  -  make a GitLab job trace readable on stdin/stdout.
+#
+# A raw trace carries four things that are not content:
+#   \r                            progress redraws
+#   2026-08-16T00:00:46.1Z 000    per-line timestamps (sometimes 000+)
+#   ESC[0K                        erase-to-end-of-line, not colour
+#   section_start:TS:name         collapsible section markers
+#
+# Colour (ESC[..m) is kept deliberately - pipe to `less -R` to see it.
+set -uo pipefail
+
+sed -e 's/\r//g' \
+    -e 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9:.]*Z [0-9A-Za-z]*+\? \?//' \
+    -e 's/\x1b\[0K//g' \
+    -e 's/section_start:[0-9]*:\([A-Za-z0-9_.-]*\)/\n== \1 ==/' \
+    -e 's/section_end:[0-9]*:[A-Za-z0-9_.-]*//' \
+  | cat -s                      # squeeze the blank runs the markers leave behind

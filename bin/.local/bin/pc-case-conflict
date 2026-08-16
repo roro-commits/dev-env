@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# pc-case-conflict
+# Fails if two tracked paths differ only by case. Such a repo cannot be checked
+# out on macOS or Windows: one file silently overwrites the other.
+set -uo pipefail
+
+dupes=$(git ls-files | tr '[:upper:]' '[:lower:]' | sort | uniq -d)
+
+if [ -n "$dupes" ]; then
+    echo "paths differing only by case:"
+    while IFS= read -r lower; do
+        git ls-files | while IFS= read -r f; do
+            [ "$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')" = "$lower" ] && echo "  $f"
+        done
+    done <<< "$dupes"
+    exit 1
+fi
+exit 0

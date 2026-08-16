@@ -1,0 +1,105 @@
+# ~/.config/pre-commit/global.yaml
+#
+# Personal quality gate. Every hook is `repo: local` + `language: system`,
+# meaning pre-commit runs a binary already on PATH and never clones anything.
+# Consequence: works offline, on the JLR network, and on the Pi, identically.
+#
+# Use with:  pre-commit install -c ~/.config/pre-commit/global.yaml
+# The project's own .pre-commit-config.yaml is then never read on this machine.
+
+repos:
+  - repo: local
+    hooks:
+
+      # --- hygiene: fixes in place, then fails so you re-stage --------------
+      - id: hygiene
+        name: whitespace, CRLF, tabs, final newline
+        entry: pc-hygiene
+        language: system
+        types: [text]
+
+      - id: merge-conflict
+        name: merge conflict markers
+        entry: bash -c 'grep -lE "^(<<<<<<< |>>>>>>> )" "$@" && exit 1 || exit 0' --
+        language: system
+        types: [text]
+
+      - id: case-conflict
+        name: paths differing only by case
+        entry: pc-case-conflict
+        language: system
+        pass_filenames: false
+
+      # Only files not already in HEAD, matching check-added-large-files.
+      # Raise the ceiling with PC_MAX_BYTES=5242880 qrun -a
+      - id: large-files
+        name: newly added files over 1 MB
+        entry: pc-large-files
+        language: system
+
+      # --- secrets ----------------------------------------------------------
+      - id: gitleaks
+        name: gitleaks
+        entry: gitleaks git --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+
+      # --- YAML -------------------------------------------------------------
+      - id: yamllint
+        name: yamllint
+        entry: >-
+          yamllint -d "{extends: relaxed, rules: {line-length: disable}}" -s
+        language: system
+        types: [yaml]
+
+      # --- shell ------------------------------------------------------------
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+
+      # --- Python -----------------------------------------------------------
+      - id: ruff-check
+        name: ruff check
+        entry: ruff check --force-exclude
+        language: system
+        types: [python]
+
+      - id: ruff-format
+        name: ruff format
+        entry: ruff format --force-exclude
+        language: system
+        types: [python]
+
+      - id: mypy
+        name: mypy
+        entry: mypy --ignore-missing-imports --disable-error-code=import-untyped
+        language: system
+        types: [python]
+
+      # --- Go ---------------------------------------------------------------
+      - id: gofmt
+        name: gofmt
+        entry: bash -c 'out=$(gofmt -l "$@"); [ -z "$out" ] || { echo "$out"; exit 1; }' --
+        language: system
+        types: [go]
+
+      # --- Markdown ---------------------------------------------------------
+      # MD013 line-length, MD033 inline HTML, MD024 duplicate headings:
+      # disabled to match the JLR gate. Verify rumdl's flag spelling with
+      # `rumdl check --help` - this is the one hook I could not test.
+      - id: rumdl
+        name: rumdl (markdown)
+        entry: rumdl check --disable MD013,MD033,MD024
+        language: system
+        types: [markdown]
+
+      # --- pre-push only: needs network and auth, guarded to skip cleanly ----
+      - id: glab-ci-lint
+        name: glab ci lint
+        entry: pc-glab-lint
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        always_run: true

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# g-ptrace PROJECT PIPELINE_ID [LINES]
+# Prints the tail of the first failed job's log in a pipeline. Used as an fzf
+# preview, so it leans on g-trace's cache rather than refetching per keystroke.
+set -uo pipefail
+
+proj=${1:-} pid=${2:-} lines=${3:-30}
+if [ -z "$proj" ] || [ -z "$pid" ]; then
+    echo "usage: g-ptrace PROJECT PIPELINE_ID [LINES]" >&2
+    exit 1
+fi
+
+job=$(glab api "projects/$proj/pipelines/$pid/jobs?per_page=100" 2>/dev/null \
+      | jq -r '[.[] | select(.status == "failed")][0].id // empty')
+
+if [ -z "$job" ]; then
+    echo "(no failed job in pipeline $pid)"
+    exit 0
+fi
+
+g-trace "$proj" "$job" "$lines"

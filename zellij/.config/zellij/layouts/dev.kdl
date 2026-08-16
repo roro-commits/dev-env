@@ -1,0 +1,33 @@
+// ~/.config/zellij/layouts/dev.kdl
+// zellij --layout dev
+//
+// Editor on top, a shell below it, and a narrow status strip that runs board
+// once and stays. Nothing polls: a pane that redraws on its own is a pane that
+// pulls your eyes.
+layout {
+    pane size=1 borderless=true {
+        plugin location="zellij:tab-bar"
+    }
+
+    pane split_direction="vertical" {
+        pane {
+            name "edit"
+            command "hx"
+            args "."
+        }
+        pane size="35%" split_direction="horizontal" {
+            pane {
+                name "shell"
+            }
+            pane size=10 {
+                name "status"
+                command "bash"
+                args "-ilc" "board; gnow 2>/dev/null; exec bash -i"
+            }
+        }
+    }
+
+    pane size=2 borderless=true {
+        plugin location="zellij:status-bar"
+    }
+}

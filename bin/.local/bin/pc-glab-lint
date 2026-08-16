@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# pc-glab-lint
+# Validates .gitlab-ci.yml with `glab ci lint`, but only when that can work.
+# Exits 0 (skip) when offline, unauthenticated, or outside a GitLab remote,
+# so a commit never fails for a reason unrelated to your code.
+set -uo pipefail
+
+skip() { echo "glab ci lint: skipped ($1)"; exit 0; }
+
+[ -f .gitlab-ci.yml ]                     || skip "no .gitlab-ci.yml"
+command -v glab >/dev/null                || skip "glab not installed"
+git remote get-url origin 2>/dev/null | grep -qi gitlab \
+                                          || skip "origin is not GitLab"
+timeout 10 glab auth status >/dev/null 2>&1 || skip "not authenticated or offline"
+
+timeout 30 glab ci lint

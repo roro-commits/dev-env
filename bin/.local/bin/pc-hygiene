@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# pc-hygiene FILE...
+# Fixes in place: CRLF line endings, trailing whitespace, exactly one final
+# newline, and leading tabs -> 2 spaces (skipped where tabs are significant).
+# Exits 1 if it changed anything, so pre-commit fails and you re-stage.
+# No network, no dependencies beyond coreutils and sed.
+set -uo pipefail
+
+changed=0
+_probe=$(mktemp) || exit 1
+trap 'rm -f "$_probe"' EXIT
+
+for f in "$@"; do
+    [ -f "$f" ] || continue
+    # Skip binaries: compare byte count with and without NUL bytes.
+    head -c 8000 "$f" > "$_probe"
+    if [ "$(tr -d '\000' < "$_probe" | wc -c)" -ne "$(wc -c < "$_probe")" ]; then
+        continue
+    fi
+
+    # Tabs are load-bearing in these formats - never touch them.
+    expand_tabs=1
+    case "$f" in
+        *.go|*.tsv|*.patch|*.diff|Makefile|makefile|GNUmakefile|*.mk|*/Makefile)
+            expand_tabs=0 ;;
+    esac
+
+    tmp=$(mktemp) || exit 1
+    if [ "$expand_tabs" -eq 1 ]; then
+        expand -i -t 2 "$f" | sed -e 's/\r$//' -e 's/[[:space:]]*$//' > "$tmp"
+    else
+        sed -e 's/\r$//' -e 's/[[:space:]]*$//' "$f" > "$tmp"
+    fi
+
+    # Exactly one final newline, matching upstream end-of-file-fixer:
+    # command substitution strips every trailing newline, printf adds one back.
+    # This both adds a missing newline and trims extra blank lines at EOF.
+    if [ -s "$tmp" ]; then
+        printf '%s\n' "$(cat "$tmp")" > "$tmp.eof" && mv "$tmp.eof" "$tmp"
+    fi
+
+    if cmp -s "$f" "$tmp"; then
+        rm -f "$tmp"
+    else
+        cat "$tmp" > "$f"                        # preserve mode and inode
+        rm -f "$tmp"
+        echo "fixed: $f"
+        changed=1
+    fi
+done
+
+exit $changed

@@ -17,7 +17,7 @@ To navigate efficiently on 38 keys, this setup relies on **Home Row Mods** (conf
 ---
 
 ## 🧬 Helix Configuration
-**Location:** `~/dev-env/helix/config.toml`  
+**Location:** `~/dev-env/helix/config.toml`
 Helix is configured with a **Space-Leader** workflow to minimize finger travel and avoid modifier gymnastics.
 
 ```toml
@@ -53,7 +53,7 @@ It is managed via **Home Manager** using `mkOutOfStoreSymlink`, meaning edits he
 ---
 
 ## ⌨️ Totem Keymap Logic
-Since the Totem has limited physical keys, we use **Home Row Mods**. 
+Since the Totem has limited physical keys, we use **Home Row Mods**.
 * **Modifier:** Hold `S` (Left Hand Home Row) to trigger `Alt`.
 * **Action:** Combine with `HJKL` (Right Hand Home Row) for navigation.
 
@@ -79,7 +79,7 @@ These bindings are available in `shared` mode, meaning they work even while you 
 ## 🎨 UI & Minimalism
 To maximize vertical and horizontal space for the **Helix** editor, the following UI adjustments are applied:
 
-* **Pane Frames:** `false` 
+* **Pane Frames:** `false`
   * Removes the thick borders and titles around every pane.
 * **Compact Layout:** * Uses the `compact-bar` to keep the status line to a single row.
 

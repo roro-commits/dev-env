@@ -46,7 +46,7 @@ d = "hover"
 "h" = "move_prev_word_start"      # Right Inner Index: Word Back (Old 'b')
 "j" = "find_next_char"            # Right Index: Find Char (Old 'f')
 ";" = "move_next_word_end"        # Right Pinky: Word End (Old 'e')
-# --- RIGHT HAND: TIME TRAVEL (Top Row) --- 
+# --- RIGHT HAND: TIME TRAVEL (Top Row) ---
 "u" = "jump_backward"       # Top Inner: Go back in history
 "i" = "jump_forward"        # Top Index: Go forward in history
 
@@ -69,4 +69,3 @@ d = "hover"
 "L" = "move_next_long_word_start"
 "H" = "move_prev_long_word_start"
 "J" = "find_prev_char"
-  

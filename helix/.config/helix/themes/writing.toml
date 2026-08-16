@@ -16,4 +16,4 @@
 "markup.bold"     = { fg = "#FFFFFF", modifiers = ["bold"] }
 "markup.italic"   = { fg = "#CCCCCC", modifiers = ["italic"] }
 "markup.link.url" = { fg = "#555555" }
-"markup.raw"      = { fg = "#888888" } 
+"markup.raw"      = { fg = "#888888" }

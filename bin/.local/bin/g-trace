@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# g-trace PROJECT JOB_ID [LINES]
+# Prints the tail of a job log, caching it so fzf's preview does not hit the
+# API on every cursor move. Finished job logs never change, so a short TTL is
+# enough to keep a running job's output fresh while making revisits instant.
+set -uo pipefail
+
+proj=${1:-} job=${2:-} lines=${3:-40}
+if [ -z "$proj" ] || [ -z "$job" ]; then
+    echo "usage: g-trace PROJECT JOB_ID [LINES]" >&2
+    exit 1
+fi
+
+ttl=${G_TRACE_TTL:-30}
+dir="${XDG_CACHE_HOME:-$HOME/.cache}/glab-trace"
+file="$dir/${proj//[^A-Za-z0-9]/_}-$job.log"
+
+mkdir -p "$dir" || exit 1
+
+fresh=0
+if [ -f "$file" ]; then
+    age=$(( $(date +%s) - $(stat -c %Y "$file") ))
+    [ "$age" -lt "$ttl" ] && fresh=1
+fi
+
+if [ "$fresh" -eq 0 ]; then
+    # Cache the cleaned form: the preview pane cannot show \r redraws or
+    # ESC[0K anyway, and cleaning once beats cleaning on every keystroke.
+    if glab api "projects/$proj/jobs/$job/trace" 2>/dev/null | g-clean > "$file.tmp"; then
+        mv "$file.tmp" "$file"
+    else
+        rm -f "$file.tmp"
+    fi
+fi
+
+[ -f "$file" ] || { echo "(no log yet)"; exit 0; }
+tail -n "$lines" "$file"

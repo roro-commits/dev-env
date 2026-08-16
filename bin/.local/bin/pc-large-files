@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# pc-large-files FILE...
+# Fails on files over PC_MAX_BYTES (default 1 MB) that are NOT already in HEAD.
+# Files large since before the gate existed are left alone: the job is to stop
+# new ones arriving, not to relitigate the repo's history.
+set -uo pipefail
+
+max=${PC_MAX_BYTES:-1048576}
+rc=0
+
+for f; do
+    [ -f "$f" ] || continue
+    git cat-file -e "HEAD:$f" 2>/dev/null && continue   # already committed
+
+    size=$(stat -c%s "$f")
+    if [ "$size" -gt "$max" ]; then
+        printf 'over %s bytes (%s): %s\n' "$max" "$size" "$f"
+        rc=1
+    fi
+done
+
+exit $rc

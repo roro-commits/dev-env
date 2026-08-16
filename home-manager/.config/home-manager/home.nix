@@ -18,13 +18,13 @@ in
 {
   # Home Manager needs a bit of information about you and the paths it should
   # manage.
-  home.username = "rawonria";
-  home.homeDirectory = "/home/rawonria";
+  home.username = "rotimi";
+  home.homeDirectory = "/home/rotimi";
 
   # This value determines the Home Manager release that your configuration is
   # compatible with. This helps avoid breakage when a new Home Manager release
   # introduces backwards incompatible changes.
-  #
+  #cd
   # You should not change this value, even if you update Home Manager. If you do
   # want to update the value, then make sure to first check the Home Manager
   # release notes.
@@ -39,24 +39,24 @@ in
     # my work flow packages
       pkgs.pdm
       pkgs.ruff
-      pkgs.nodePackages.bash-language-server
+      pkgs.bash-language-server
       # pkgs.astral-ty  # Use pkgs.ty if that is how it is named in your channel
       pkgs. bash-language-server
       pkgs.gitlab-ci-ls
       pkgs.shellcheck
+      pkgs.pre-commit
       pkgs.yaml-language-server
       pkgs.efm-langserver
       pkgs.gitlab-ci-ls
       pkgs.glab
+      pkgs.gitlab-ci-local
       pkgs.yamllint
     # -----------------------
       pkgs.mado #markdown linter
       pkgs.rumdl #markdown formater/linter
       pkgs.marksman
+      pkgs.gitleaks
       # -----------------------
-      pkgs.mado #markdown linter
-      pkgs.rumdl #markdown formater/linter
-      pkgs.marksman
       pkgs.typos-lsp
       pkgs.codebook # Ensure this is available in your nixpkgs/overlay
       pkgs.zellij
@@ -99,7 +99,7 @@ in
     # Package management
       pkgs.pdm
     #clipboard manager
-      pkgs.xclip      
+      pkgs.xclip
     #Terminal Image
       pkgs.fzf
       pkgs.chafa
@@ -150,11 +150,11 @@ in
   #
   #
   # 1. Define and export your environment variables
- 
+
  home.sessionVariables = let
     certPath = "/etc/ssl/certs/ca-certificates.crt";
     certDir = "/etc/ssl/certs/";
-    
+
   in {
     SSL_CERT_FILE = certPath;
     SSL_CERT_DIR = certDir;
@@ -165,6 +165,7 @@ in
     EDITOR = "hx";
     vault-secret-admin = "hello";
     drm-100-temp = "hello";
+    VISUAL = "hx";
   };
 
   # 2. Add Klocwork directories to your PATH
@@ -182,70 +183,24 @@ in
     if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
       . "$HOME/.nix-profile/etc/profile.d/nix.sh"
     fi
-<<<<<<< HEAD
     if [[ -z "$ZELLIJ" ]]; then
       zellij --layout strider
     fi
     export MSSQL_PW='YourStrong!Passw0rd'
   '';
 
+ initExtra = ''
+    [ -f ~/.config/bash/init.sh ] && . ~/.config/bash/init.sh
+  '';
+
  shellAliases = {
     kwcmd = "ls -r /opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin";
     kwtools = "ls  -r  /opt/klocwork/buildtools/kwbuildtools/bin";
     xcopy = "xclip -selection clipboard";
-    xpaste = "xclip -o"; 
+    xpaste = "xclip -o";
     python  = "py";
     ruff-strict = "ruff check --extend-select ANN";
     mssql= "docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P $MSSQL_PW -C";
-=======
-    export PATH="/home/rotimi/.opencode/bin:$PATH"
-    export PATH="/usr/bin/ollama:$PATH"
-    
-    if [[ -z "$ZELLIJ" ]]; then
-      zellij --layout strider
-    fi  
-  ''; 
-
- shellAliases = {
-  # 1. THE DAILY DRIVER (DeepSeek V2 Lite)
-  # Best balance of smarts and context memory. Fits 100% in your VRAM.
-  # Uses 'diff' format for speed, but switches to 'whole' if the edit is massive.
-  scripter = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format diff --no-stream --cache-prompts --map-tokens 1024 ";
-  coder = "aider --timeout 1200 --model ollama_chat/deepseek-verbose --model-metadata-file ~/.aider.model.metadata.json --edit-format whole --no-stream --cache-prompts --map-tokens 1024";
-  # If you work on a HUGE existing codebase, use this one (Lowers map size to save memory)
-  legacy-coder = "aider --model ollama_chat/deepseek-coder-v2:lite --edit-format whole --no-stream --map-tokens 512";
-  #Xclip
-  xcopy = "xclip -selection clipboard";
-  xpaste = "xclip -o"; 
-  python  = "py";
-  ruff-strict = "ruff check --extend-select ANN";
-  mssql= "docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P $MSSQL_PW -C";
-
-  # 3. THE SPEED DEMON (Qwen 2.5 14B)
-  # Instant replies. Use this for quick scripts, css fixes, or small refactors.
-  # It leaves massive room for context, so we enable a huge repo map.
-
-  fastscripter = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format diff --no-stream --map-tokens 2048";
-  fastcoder = "aider --timeout 1200 --model ollama_chat/qwen2.5-coder:14b --edit-format whole --no-stream --map-tokens 2048";
-
->>>>>>> b3111be (current master)
-  };
-};
-  
-programs.ruff = {
-  enable = true;
-  settings = {
-    lint = {
-      # This is where you enable the "B" (Bugbear) rules
-      select = [
-        "E" # pycodestyle
-        "F" # Pyflakes
-        "B" # flake8-bugbear logic checks
-        "I" # isort
-        "ANN"# Annotation
-      ];
-      ignore = [ "E501" ]; # Example: ignore line length
-    };
   };
 };
 
@@ -287,18 +242,17 @@ programs.helix = {
       # Python
       ty = { command = "ty"; args = ["server"]; };
       ruff = { command = "ruff"; args = ["server"]; };
-    
+
       # Spellcheckers (codebook: serve, typos: --stdio)
       codebook = { command = "codebook-lsp"; args = ["serve"]; };
       typos = { command = "typos-lsp"; args = ["--stdio"]; };
-    
-<<<<<<< HEAD
+
       #YAML Lint
       efm-yaml = {
       command = "efm-langserver";
       args = [ "-c" "${efmYamlConfig}" ];
       };
-      
+
       #YAMl Gitlab CI
       gitlab-ci-ls = {
         command = "gitlab-ci-ls";
@@ -307,20 +261,14 @@ programs.helix = {
           cache = "/tmp/gitlab-ci-ls-cache";
         };
       };
-      
+
       # Bash, Markdown, and YAML
       bash-lsp = { command = "bash-language-server"; args = ["start"]; };
       marksman = { command = "marksman"; args = ["server"]; };
       yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
-      
+
     };
-=======
-    # Bash, Markdown, and YAML
-    bash-lsp = { command = "bash-language-server"; args = ["start"]; };
-    marksman = { command = "marksman"; args = ["server"]; };
-    yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
-  };
-  
+
   #YAMl Gitlab CI
   gitlab-ci-ls = {
     command = "gitlab-ci-ls";
@@ -329,18 +277,17 @@ programs.helix = {
       cache = "/tmp/gitlab-ci-ls-cache";
     };
   };
->>>>>>> b3111be (current master)
 
     language = [
       {
         name = "python";
-        file-types = ["py" "pyi"]; 
+        file-types = ["py" "pyi"];
         language-servers = [ "ty" "ruff" "typos" "codebook" ];
         auto-format = true;
       }
       {
         name = "bash";
-        file-types = ["sh" "bash" ".bashrc" ".bash_profile"]; 
+        file-types = ["sh" "bash" ".bashrc" ".bash_profile"];
         language-servers = [ "bash-lsp" "typos" "codebook" ];
       }
       {
