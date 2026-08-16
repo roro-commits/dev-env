@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+# cil-vars [--home]
+#
+# Reads the merged pipeline (includes and extends resolved) and writes a
+# variables template listing every variable the jobs reference, annotated with
+# which jobs use each one, and pre-filled from anything you have already set.
+#
+#   cil-vars            -> ./.gitlab-ci-local-variables.yml   (this repo)
+#   cil-vars --home     -> ~/.gitlab-ci-local/variables.yml   (every repo)
+#
+# The repo file must live in the repo: that is where gitlab-ci-local looks.
+# The home file is the one worth filling in once - most of the forty are the
+# same across projects.
+set -uo pipefail
+
+# Keep the generated files out of git without touching .gitignore, which is
+# tracked and would reach the remote. Two untracked places do the job:
+# ~/.config/git/ignore applies everywhere, .git/info/exclude to one repo.
+_ignore_globally() {
+    local pattern=$1 gitignore
+
+    gitignore=$(git config --global core.excludesFile 2>/dev/null)
+    if [ -z "$gitignore" ]; then
+        gitignore="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
+        mkdir -p "$(dirname "$gitignore")"
+        git config --global core.excludesFile "$gitignore"
+        echo "cil-vars: set core.excludesFile to $gitignore"
+    fi
+    gitignore=${gitignore/#\~/$HOME}
+
+    if ! grep -qxF "$pattern" "$gitignore" 2>/dev/null; then
+        printf '%s\n' "$pattern" >> "$gitignore"
+        echo "cil-vars: added $pattern to $gitignore"
+    fi
+}
+
+HOME_VARS="${HOME}/.gitlab-ci-local/variables.yml"
+REPO_VARS=".gitlab-ci-local-variables.yml"
+
+target=repo
+[ "${1:-}" = "--home" ] && target=home
+
+command -v gitlab-ci-local >/dev/null || {
+    echo "cil-vars: gitlab-ci-local not installed" >&2; exit 1; }
+[ -f .gitlab-ci.yml ] || { echo "cil-vars: no .gitlab-ci.yml here" >&2; exit 1; }
+
+merged=$(gitlab-ci-local --preview 2>/dev/null)
+[ -n "$merged" ] || { echo "cil-vars: --preview produced nothing" >&2; exit 1; }
+
+# --- which jobs reference which variables ----------------------------------
+# A top-level key with no indentation is a job (or a config block; the noise
+# is small and obvious). Everything indented under it belongs to that job.
+# Note: no {2,} interval here - mawk and busybox awk do not support ERE
+# intervals without a flag, and silently match a fixed length instead, which
+# truncated every name to three characters. Plain + and a length test work
+# everywhere.
+pairs=$(printf '%s\n' "$merged" | awk '
+    /^[A-Za-z_.][A-Za-z0-9_.-]*:/ { job = $1; sub(/:$/, "", job); next }
+    job == "" { next }
+    {
+        line = $0
+        while (match(line, /\$\{?[A-Z][A-Z0-9_]+\}?/)) {
+            v = substr(line, RSTART, RLENGTH)
+            gsub(/[${}]/, "", v)
+            if (length(v) >= 3 && !(v "|" job in seen)) {
+                seen[v "|" job] = 1
+                print v "\t" job
+            }
+            line = substr(line, RSTART + RLENGTH)
+        }
+    }')
+
+# Variables gitlab-ci-local supplies itself, and the four that decide which
+# jobs run at all (handled separately at the top of the file).
+skip='^(CI_PROJECT_(DIR|NAME|PATH|PATH_SLUG|ID|NAMESPACE|URL)|CI_COMMIT_(SHA|SHORT_SHA|REF_SLUG|TIMESTAMP|MESSAGE|TITLE|AUTHOR)|CI_JOB_(NAME|STAGE|ID|STATUS)|CI_PIPELINE_(ID|IID)|CI_SERVER_(URL|HOST|PORT|PROTOCOL)|CI_API_V4_URL|GITLAB_CI|CI_PIPELINE_SOURCE|CI_COMMIT_BRANCH|CI_COMMIT_REF_NAME|CI_DEFAULT_BRANCH)$'
+
+# --- existing values, so you never retype one ------------------------------
+# Later sources win: repo file, then home file, then the environment.
+lookup() {
+    local key=$1 val=
+
+    for f in "$HOME_VARS" "$REPO_VARS"; do
+        [ -f "$f" ] || continue
+        v=$(sed -n "s/^${key}:[[:space:]]*//p" "$f" | head -1)
+        [ -n "$v" ] && val=$v
+    done
+
+    # Environment beats both: it is what you exported for this session.
+    if [ -n "${!key:-}" ]; then
+        val=\"${!key}\"
+    fi
+
+    printf '%s\n' "$val"
+}
+
+if [ "$target" = home ]; then
+    out=$HOME_VARS
+    mkdir -p "$(dirname "$out")"
+else
+    out=$REPO_VARS
+fi
+
+[ -e "$out" ] && { cp "$out" "$out.bak"; echo "cil-vars: kept $out.bak"; }
+
+{
+    printf '# Written by cil-vars from the merged pipeline.\n'
+    if [ "$target" = home ]; then
+        printf '# This file applies to every project. Put the shared ones here\n'
+        printf '# once - registry, artifactory, proxy - and the per-project odds\n'
+        printf '# and ends in the repo file.\n'
+    else
+        printf '# This file is per repo and is already gitignored globally,\n'
+        printf '# via core.excludesFile - not .gitignore, which would be\n'
+        printf '# committed and reach the remote.\n'
+        printf '# Anything shared across projects belongs in %s\n' "$HOME_VARS"
+    fi
+    printf '\n'
+
+    printf '# --- which pipeline this is: these decide what runs at all ---\n'
+    for k in CI_PIPELINE_SOURCE CI_COMMIT_BRANCH CI_COMMIT_REF_NAME CI_DEFAULT_BRANCH; do
+        v=$(lookup "$k")
+        case $k in
+            CI_PIPELINE_SOURCE) printf '%s: %s   # push, merge_request_event, schedule\n' \
+                                    "$k" "${v:-push}" ;;
+            CI_DEFAULT_BRANCH)  printf '%s: %s\n' "$k" "${v:-main}" ;;
+            *) printf '%s: %s\n' "$k" "${v:-$(git branch --show-current 2>/dev/null)}" ;;
+        esac
+    done
+    printf '\n'
+
+    # Variables used by more than one job cannot be repeated - YAML would
+    # take the last one - so they are lifted into their own section and the
+    # per-job sections carry only what is unique to that job. Delete a whole
+    # section for a job you will never run locally.
+    var_jobs=$(printf '%s\n' "$pairs" \
+        | awk -F'\t' '
+              $2 == "" { next }
+              { if (jobs[$1] == "") jobs[$1] = $2; else jobs[$1] = jobs[$1] ", " $2
+                n[$1]++ }
+              END { for (v in jobs) print v "\t" n[v] "\t" jobs[v] }' \
+        | sort)
+
+    # Anything that looks like a credential gets $NAME rather than an empty
+    # string, so the value lives in your environment and never in a file.
+    secretish='(KEY|TOKEN|PASSWORD|PASSWD|SECRET|CREDENTIAL|AUTH|PRIVATE)'
+
+    emit() {                       # emit NAME  TRAILING-COMMENT
+        local name=$1 note=${2:-} val
+        printf '%s\n' "$name" | grep -qE "$skip" && return
+
+        val=$(lookup "$name")
+        if [ -z "$val" ] && printf '%s\n' "$name" | grep -qE "$secretish"; then
+            val="\$$name"
+            note="${note:+$note  }<- export this"
+        fi
+
+        if [ -n "$note" ]; then
+            printf '%-30s %-24s # %s\n' "$name:" "${val:-\"\"}" "$note"
+        else
+            printf '%-30s %s\n' "$name:" "${val:-\"\"}"
+        fi
+    }
+
+    shared=$(printf '%s\n' "$var_jobs" | awk -F'\t' '$2 > 1 { print $1 "\t" $3 }')
+    if [ -n "$shared" ]; then
+        printf '# --- needed by more than one job ---\n'
+        while IFS=$'\t' read -r name jobs; do
+            [ -n "$name" ] && emit "$name" "$jobs"
+        done <<< "$shared"
+        printf '\n'
+    fi
+
+    # Jobs in the order they appear in the pipeline, not alphabetically.
+    printf '%s\n' "$pairs" | awk -F'\t' '!seen[$2]++ && $2 != "" { print $2 }' \
+    | while read -r job; do
+          own=$(printf '%s\n' "$var_jobs" \
+                | awk -F'\t' -v j="$job" '$2 == 1 && $3 == j { print $1 }')
+          [ -n "$own" ] || continue
+
+          printf '# --- %s ---\n' "$job"
+          while read -r name; do
+              [ -n "$name" ] && emit "$name"
+          done <<< "$own"
+          printf '\n'
+      done
+
+} > "$out"
+
+# A stub you fill in and source, so credentials stay out of every file that
+# could be committed. Written beside the variables file, never overwritten.
+secrets_out=${out%.yml}.env
+if [ ! -e "$secrets_out" ]; then
+    refs=$(grep -oE '^\s*[A-Z][A-Z0-9_]*:\s*\$[A-Z][A-Z0-9_]*' "$out" \
+           | grep -oE '\$[A-Z][A-Z0-9_]*' | tr -d '$' | sort -u)
+    if [ -n "$refs" ]; then
+        # shellcheck disable=SC2094,SC2016   # different file; literal $NAME
+        {
+            printf '# source this, do not commit it:  . %s\n' "$(basename "$secrets_out")"
+            printf '# these are the values cil-vars left as $NAME references.\n\n'
+            printf '%s\n' "$refs" | while read -r r; do
+                [ -n "$r" ] && printf 'export %s=\n' "$r"
+            done
+        } > "$secrets_out"
+        printf 'wrote %s - fill it in and source it\n' "$secrets_out"
+    fi
+fi
+
+filled=$(grep -cE '^[A-Z][A-Z0-9_]*: *[^"# ]' "$out" 2>/dev/null || echo 0)
+total=$(grep -cE '^[A-Z][A-Z0-9_]*:' "$out" 2>/dev/null || echo 0)
+
+if [ "$target" = repo ]; then
+    _ignore_globally '.gitlab-ci-local-variables.yml'
+    _ignore_globally '.gitlab-ci-local-variables.env'
+    _ignore_globally '.gitlab-ci-local/'
+fi
+
+printf 'wrote %s\n' "$out"
+printf '  %s variables, %s already had a value\n' "$total" "$filled"
+[ "$target" = repo ] && \
+    printf '  shared ones: run cil-vars --home once and fill them there\n'
