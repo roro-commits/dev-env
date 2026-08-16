@@ -118,7 +118,7 @@ qdoctor() {
     for t in pre-commit yamllint shellcheck ruff mypy gofmt rumdl gitleaks \
              glab gitlab-ci-local docker jq \
              pc-hygiene pc-case-conflict pc-large-files pc-glab-lint \
-             g-trace g-ptrace g-clean; do
+             g-trace g-ptrace g-clean cil-vars; do
         if command -v "$t" >/dev/null; then
             printf '  ok      %s\n' "$t"
         else
