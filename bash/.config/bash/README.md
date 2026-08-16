@@ -32,11 +32,22 @@ Load order does not matter — no file depends on another at source time.
 
 ## Install
 
+First time, or on a new machine - `dstow` is one of the functions being
+installed, so it does not exist yet:
+
 ```bash
 cd ~/.dev-env/dev-env
-dstow bash bin pre-commit
-qdoctor                        # checks every tool the gate calls
+unzip -o ~/Downloads/dev-env-packages.zip
+bash install.sh
+. ~/.config/bash/init.sh
+qdoctor
 ```
+
+`install.sh` needs only stow. It finds the packages itself, restores execute
+bits that zip drops, clears symlinks pointing at an older tree, and stows with
+`--no-folding` so it coexists with home-manager in `~/.config`.
+
+After that, `dstow` handles new files and `reload` picks up edits.
 
 `home.nix`, inside `programs.bash`:
 
