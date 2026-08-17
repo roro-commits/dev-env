@@ -38,7 +38,16 @@ HOME_VARS="${HOME}/.gitlab-ci-local/variables.yml"
 REPO_VARS=".gitlab-ci-local-variables.yml"
 
 target=repo
-[ "${1:-}" = "--home" ] && target=home
+force_env=
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --home) target=home ;;
+        --env)  shift; force_env=$1 ;;      # comma separated names
+        *)      echo "cil-vars: unknown option $1" >&2; exit 1 ;;
+    esac
+    shift
+done
 
 command -v gitlab-ci-local >/dev/null || {
     echo "cil-vars: gitlab-ci-local not installed" >&2; exit 1; }
@@ -149,7 +158,14 @@ fi
         printf '%s\n' "$name" | grep -qE "$skip" && return
 
         val=$(lookup "$name")
-        if [ -z "$val" ] && printf '%s\n' "$name" | grep -qE "$secretish"; then
+
+        # --env wins over any existing value: you are moving it out of the
+        # file on purpose.
+        if [ -n "$force_env" ] && printf '%s\n' "${force_env//,/ }" \
+             | tr ' ' '\n' | grep -qxF "$name"; then
+            val="\$$name"
+            note="${note:+$note  }<- export this"
+        elif [ -z "$val" ] && printf '%s\n' "$name" | grep -qE "$secretish"; then
             val="\$$name"
             note="${note:+$note  }<- export this"
         fi
@@ -189,19 +205,30 @@ fi
 # A stub you fill in and source, so credentials stay out of every file that
 # could be committed. Written beside the variables file, never overwritten.
 secrets_out=${out%.yml}.env
-if [ ! -e "$secrets_out" ]; then
-    refs=$(grep -oE '^\s*[A-Z][A-Z0-9_]*:\s*\$[A-Z][A-Z0-9_]*' "$out" \
-           | grep -oE '\$[A-Z][A-Z0-9_]*' | tr -d '$' | sort -u)
-    if [ -n "$refs" ]; then
-        # shellcheck disable=SC2094,SC2016   # different file; literal $NAME
+refs=$(grep -oE '^[A-Z][A-Z0-9_]*:[[:space:]]*\$[A-Z][A-Z0-9_]*' "$out" \
+       | grep -oE '\$[A-Z][A-Z0-9_]*' | tr -d '$' | sort -u)
+
+if [ -n "$refs" ]; then
+    if [ ! -e "$secrets_out" ]; then
+        # shellcheck disable=SC2016,SC2094   # literal $NAME; $out is a different file
         {
             printf '# source this, do not commit it:  . %s\n' "$(basename "$secrets_out")"
-            printf '# these are the values cil-vars left as $NAME references.\n\n'
-            printf '%s\n' "$refs" | while read -r r; do
-                [ -n "$r" ] && printf 'export %s=\n' "$r"
-            done
+            printf '# the values cil-vars left as $NAME references in the yaml.\n\n'
         } > "$secrets_out"
-        printf 'wrote %s - fill it in and source it\n' "$secrets_out"
+    fi
+
+    # Append only what is missing: a value you already filled in stays.
+    added=0
+    while read -r r; do
+        [ -n "$r" ] || continue
+        grep -qE "^export $r=" "$secrets_out" && continue
+        printf 'export %s=\n' "$r" >> "$secrets_out"
+        added=$((added + 1))
+    done <<< "$refs"
+
+    if [ "$added" -gt 0 ]; then
+        printf 'added %s name(s) to %s - fill in and source it\n' \
+            "$added" "$secrets_out"
     fi
 fi
 

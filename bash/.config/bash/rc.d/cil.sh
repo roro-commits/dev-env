@@ -10,6 +10,12 @@
 #>   cil -s build          same, with your ssh agent forwarded
 #>   cil -v                variables template for this repo, grouped by job
 #>   cil -v --home         the shared ones, in ~/.gitlab-ci-local/variables.yml
+#>   cil -v --env A,B      move named variables out to the .env stub too
+#>   cil -t VAULT_ID_TOKEN paste-ready fake id_token for a job that needs one
+#>
+#>   -t mints a JWT with GitLab's claim shape. no server, no vault, nothing
+#>   verifies it - it exists so a job that reads a token can run. that it
+#>   would be rejected everywhere is the design working, not a gap.
 #>
 #>   -v reads the merged pipeline, so it sees what the included templates
 #>   reference too. each line is annotated with the jobs that use it, and
@@ -72,6 +78,9 @@ cil() {
         -v|--vars)
             shift
             cil-vars "$@" ;;
+        -t|--token)
+            shift
+            g-oidc "$@" ;;
         -l|--list)
             gitlab-ci-local "${ssh_opt[@]}" --list ;;
         -j|--job)

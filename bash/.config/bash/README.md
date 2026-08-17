@@ -3,6 +3,19 @@
 Thirty commands. Three jobs: move between projects, stop broken code reaching
 the pipeline, drive GitLab without a browser.
 
+## Start here
+
+Three commands do most of the work. Everything else can wait until you need it.
+
+```bash
+gstats 200      # once, before the gate changes anything - the baseline
+qgate           # per repo, installs the hooks
+qrun -b         # before every push
+```
+
+`gnow` replaces opening a browser tab; `gmr` is the hub view. `gfail` when
+something breaks, if you will write the root cause properly.
+
 **Start with `dev-help`.** It lists everything; `dev-help gpipe` shows examples
 for one. The help is read out of the source at runtime, so it cannot go stale.
 
@@ -24,8 +37,10 @@ bash/.config/bash/
     ├── focus.sh     focus board
     └── help.sh      dev-help m
 
-bin/.local/bin/      pc-* (pre-commit hooks), g-trace, g-ptrace, g-clean
+bin/.local/bin/      pc-* (pre-commit hooks), g-trace, g-ptrace, g-clean,
+                     cil-vars, g-oidc
 pre-commit/.config/pre-commit/global.yaml
+zellij/.config/zellij/  layouts/, keybinds-snippet.kdl
 ```
 
 Load order does not matter — no file depends on another at source time.
@@ -86,6 +101,54 @@ qrun -f    named files qrun -p  the project's config, i.e. what CI does
 ```
 
 `SKIP=mypy qrun -a` skips a hook — pre-commit's own variable, inherited.
+
+## Running pipelines locally
+
+`cil` wraps gitlab-ci-local: it parses your `.gitlab-ci.yml`, resolves includes
+and `extends`, and runs the jobs in Docker. It catches the class of failure
+that has nothing to do with the runner - a typo, a wrong path, a missing tool,
+a `needs` pointing at the wrong stage.
+
+```
+cil -l          list jobs        cil build      run one
+cil -j          pick one         cil -n build   plus what it needs
+cil -s build    forward the ssh agent, for this run only
+cil -v          variables template for this repo, grouped by job
+cil -v --home   the shared ones, once, for every project
+cil -t NAME     a fake id_token, so a job that reads one can run
+```
+
+`cil -v` reads the *merged* pipeline, so it sees what the included templates
+reference too. Each variable is annotated with the jobs that use it, values you
+already have are carried over, and credential-looking names become `$NAME`
+references with a matching `.env` stub to fill in and source. Both generated
+files are gitignored automatically through `core.excludesFile`, never
+`.gitignore`, which would be committed.
+
+Variables that are identical everywhere belong in `~/.gitlab-ci-local/
+variables.yml` via `cil -v --home`; anything project-shaped stays in the repo
+file. Putting `CI_REGISTRY_IMAGE` in the home file is the mistake that fails
+silently.
+
+Three things it cannot reproduce, and no local tool can: `CI_JOB_TOKEN`,
+real OIDC `id_tokens`, and the runner's network position. `cil -t` mints a
+token with GitLab's claim shape so a script can be exercised, but nothing will
+verify it - that is the design working, not a gap.
+
+`-s` is opt-in per run for a reason: the agent socket lets every script in the
+pipeline, including included templates you did not write, sign as you.
+
+### What the gate checks first
+
+`pc-syntax` runs before every linter and asks only: does this file parse? It
+uses a real parser per language - `bash -n`, `ast.parse`, `jq`, `node --check`,
+`gofmt -e`, `tomllib`, PyYAML, `nix-instantiate --parse` - so a brace inside a
+string never trips it. An unclosed bracket fails in a second instead of six
+minutes.
+
+YAML gets one extra check: duplicate keys. They are legal YAML and silently
+keep the last value, which in a `.gitlab-ci.yml` means one job quietly
+replacing another.
 
 ## The hub
 
@@ -176,6 +239,20 @@ Three ways to make a layout permanent, weakest to strongest:
 `zf <command>` throws anything into a floating pane; the keybind snippet in
 `layouts/keybinds-snippet.kdl` binds the useful ones to Alt keys.
 
+## Command index
+
+```
+projects     p  pl  pp  pclone
+dev-env      de  dstow  dtake  reload
+gate         qgate  qrun  qdoctor
+local runs   cil
+gitlab       gauth  grepo  gpipe  gjob  gart  gview  gwatch  gnow  gmr  gvar
+records      gfail  gmine  gstats  gcode
+zellij       zj  zjl  zjk  zf  zjwhere  zjsave  zjlayouts
+focus        focus  board
+help         dev-help  m  aliases
+```
+
 ## Rough edges
 
 - `glab` mostly *adds* flags. Actual removals are rare and reach you as a
@@ -185,8 +262,14 @@ Three ways to make a layout permanent, weakest to strongest:
   (versioned JSON) and only actions use subcommands.
 - `rumdl`, `gitleaks` and `gvar` flag spellings were verified once. Re-check
   after a nixpkgs bump.
-- `gmr`, `gvar` and `gfail fix` are the only write paths. All confirm;
-  `gvar rm` needs the key typed back.
+- `cil -t` needs `pyjwt`: `pip install --break-system-packages pyjwt
+  cryptography`. Whether gitlab-ci-local expands a `$NAME` reference from the
+  environment is version-dependent - check with `cil -l` before trusting it.
+- Zellij differs between machines if your package sources differ. `zj` from
+  inside a session switches on new versions, opens the session manager on
+  middling ones, and asks you to detach on old ones. `zjwhere` says which.
+- Write paths, all confirmed: `gmr new`, `gvar set`, `gvar rm` (type the key
+  back), `zjk` (type `kill` for a running session), `gauth rotate`.
 - Porting to Woodpecker or GitHub Actions means putting `_ci_*` verbs in front
   of the ~20 direct `glab api` calls. Worth doing with a second provider in
   hand, not before.

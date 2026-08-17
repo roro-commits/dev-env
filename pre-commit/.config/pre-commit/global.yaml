@@ -18,6 +18,14 @@ repos:
         language: system
         types: [text]
 
+      # Does it parse? Real parsers per language, so an unclosed bracket is
+      # caught here rather than six minutes into a pipeline.
+      - id: syntax
+        name: does it parse
+        entry: pc-syntax
+        language: system
+        types: [text]
+
       - id: merge-conflict
         name: merge conflict markers
         entry: bash -c 'grep -lE "^(<<<<<<< |>>>>>>> )" "$@" && exit 1 || exit 0' --
