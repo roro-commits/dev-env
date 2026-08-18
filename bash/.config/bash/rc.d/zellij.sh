@@ -203,20 +203,34 @@ _zj_remove() {
     done
 }
 
-#: zf <command...>       run something in a floating pane and keep it open
-#>   zf gnow               status without losing your editor
+#: zf [-c] <command...>  run something in a floating pane
+#>   zf gnow               runs it, then leaves a shell in the pane
 #>   zf gpipe              the pipeline browser, floating
-#>   zf lazygit
+#>   zf -c lazygit         close the pane when it exits instead
 #>
-#>   the pane stays until you press a key, so short output does not vanish.
+#>   by default the pane stays: the command runs, then you get an
+#>   interactive shell in the same directory, so the output is still there
+#>   and you can keep working. -c closes it.
+#>
 #>   only works from inside a zellij session
 zf() {
     _zj_inside || { echo "zf: not inside a zellij session" >&2; return 1; }
-    [ $# -gt 0 ] || { echo "usage: zf <command...>" >&2; return 1; }
+
+    local close=0
+    case "${1:-}" in
+        -c|--close) close=1; shift ;;
+    esac
+    [ $# -gt 0 ] || { echo "usage: zf [-c] <command...>" >&2; return 1; }
 
     # -ilc so the rc files load and these functions exist in the new pane.
-    zellij run --floating --close-on-exit -- \
-        bash -ilc "$* ; printf '\n[any key to close] '; read -rsn1"
+    if [ "$close" -eq 1 ]; then
+        zellij run --floating --close-on-exit -- bash -ilc "$*"
+    else
+        # exec bash -i leaves a usable shell where the command was, in the same
+        # directory. The pane becomes somewhere to keep working rather than
+        # something that vanishes the moment the command finishes.
+        zellij run --floating -- bash -ilc "$* ; exec bash -i"
+    fi
 }
 
 #: zjwhere               am I inside zellij, and which session

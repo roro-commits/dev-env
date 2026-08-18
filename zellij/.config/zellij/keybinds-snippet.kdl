@@ -6,6 +6,10 @@
 //
 // Alt is used because Ctrl is already crowded in both zellij and helix.
 
+// Panes leave an interactive shell rather than closing: the output stays on
+// screen and the pane is somewhere to keep working. Close one with Ctrl-o d
+// or by typing exit.
+
 keybinds {
     // Ctrl-q quits zellij outright, killing every pane in the session and
     // anything unsaved in them. It sits next to Ctrl-w and Ctrl-a. Unbind it
@@ -19,7 +23,7 @@ keybinds {
 
         // status: where am I, did it pass, what broke
         bind "Alt g" {
-            Run "bash" "-ilc" "gnow; printf '\n[key] '; read -rsn1" {
+            Run "bash" "-ilc" "gnow; exec bash -i" {
                 floating true
                 name "gnow"
             }
@@ -27,7 +31,7 @@ keybinds {
 
         // today's numbers
         bind "Alt b" {
-            Run "bash" "-ilc" "board; printf '[key] '; read -rsn1" {
+            Run "bash" "-ilc" "board; exec bash -i" {
                 floating true
                 name "board"
             }
@@ -39,7 +43,6 @@ keybinds {
                 floating true
                 pinned true
                 name "merge requests"
-                close_on_exit true
             }
         }
 
@@ -48,13 +51,12 @@ keybinds {
             Run "bash" "-ilc" "gpipe" {
                 floating true
                 name "pipelines"
-                close_on_exit true
             }
         }
 
         // run the quality gate over the branch before pushing
         bind "Alt q" {
-            Run "bash" "-ilc" "qrun -b; printf '\n[key] '; read -rsn1" {
+            Run "bash" "-ilc" "qrun -b; exec bash -i" {
                 floating true
                 name "qrun"
             }
@@ -65,7 +67,6 @@ keybinds {
             Run "bash" "-ilc" "m" {
                 floating true
                 name "menu"
-                close_on_exit true
             }
         }
     }

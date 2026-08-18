@@ -230,6 +230,41 @@ gauth() {
     esac
 }
 
+# Diff between two commits using the API, so it works whether or not the local
+# repo has fetched them. Output is a unified diff on stdout.
+_g_compare() {
+    local proj from=$1 to=$2
+    proj=$(_g_project) || return 1
+
+    _g_api "repository/compare" "?from=$from&to=$to" \
+        | jq -r '.diffs[]?
+                 | "diff --git a/\(.old_path) b/\(.new_path)\n\(.diff)"'
+}
+
+# The pipeline that ran before this one on the same ref.
+_g_prev_pipeline() {
+    local id=$1 ref created
+    ref=$(_g_api "pipelines/$id" | jq -r .ref)
+    created=$(_g_api "pipelines/$id" | jq -r .created_at)
+
+    _g_api pipelines "?ref=$ref&per_page=100" \
+        | jq -r --arg t "$created" '
+              [.[] | select(.created_at < $t)]
+              | sort_by(.created_at) | reverse | .[0].id // empty'
+}
+
+# What a commit contains: message, author, and the diff it introduced. The
+# API version of `git show`, so it works on commits the local repo never had.
+_g_show() {
+    local sha=$1
+
+    _g_api "repository/commits/$sha" \
+        | jq -r '"commit \(.id)\nAuthor:  \(.author_name)\nDate:    \(.created_at[0:16] | sub("T"; " "))\nRefs:    \(.last_pipeline.ref // "-")\n\n    \(.title)\n"'
+
+    _g_api "repository/commits/$sha/diff" \
+        | jq -r '.[]? | "diff --git a/\(.old_path) b/\(.new_path)\n\(.diff)"'
+}
+
 # --- pipelines --------------------------------------------------------------
 
 # One line per pipeline: id, status, ref, short sha, when. Fixed-width via awk
@@ -247,7 +282,17 @@ _g_pipelines() {
 #: gpipe [n]             browse pipelines, drill into jobs
 #>   gpipe                 last 20 pipelines
 #>   gpipe 100             last 100
-#>   enter on a pipeline opens its jobs; ctrl-v opens it in glab's own TUI
+#>   enter    the jobs of that pipeline
+#>   alt-s    the commit it ran on - message, author, and what it changed
+#>   alt-d    a diff: one row, since the previous run on that ref;
+#>            two rows tabbed, between those two pipelines
+#>   ctrl-v   glab's own TUI
+#>
+#>   alt-d rather than ctrl-d because fzf binds ctrl-d to delete-char, which
+#>   aborts the picker on an empty query
+#>
+#>   the diff comes from the API, so it works on commits your local repo
+#>   has never fetched
 #>
 #>   GLAB_MENU=menu gpipe  arrow keys instead of fzf everywhere
 #>
@@ -264,8 +309,9 @@ gpipe() {
         # --expect makes fzf print the pressed key as the first line, which is
         # how one picker offers two actions without a second menu.
         out=$(_g_pipelines "${1:-20}" | pick --ansi --prompt='pipeline> ' --height=60% \
-                  --expect=ctrl-v \
-                  --header='enter: jobs   ctrl-v: glab TUI   esc: quit') || return 0
+                  --expect=ctrl-v,alt-d,alt-s --multi \
+                  --header='enter jobs   alt-s code   alt-d diff   ctrl-v TUI   tab pick 2   esc') \
+              || return 0
 
         key=$(printf '%s\n' "$out" | sed -n 1p)
         line=$(printf '%s\n' "$out" | sed -n 2p)
@@ -273,11 +319,44 @@ gpipe() {
         [ -n "$line" ] || return 0
 
         id=${line%% *}
-        if [ "$key" = ctrl-v ]; then
-            glab ci view -p "$id"
-        else
-            gjob "$id"
-        fi
+        case $key in
+            ctrl-v) glab ci view -p "$id" ;;
+            alt-s)
+                # The commit this pipeline ran on: what the code was when it
+                # passed or failed.
+                local sha
+                sha=$(_g_api "pipelines/$id" | jq -r .sha)
+                _g_show "$sha" | _g_colordiff | ${PAGER:-less} -R ;;
+            alt-d)
+                # Two rows tabbed: compare them. One row: compare with whatever
+                # ran before it on the same ref - "what did I change since".
+                local second from to
+                second=$(printf '%s\n' "$out" | sed -n 3p)
+                if [ -n "$second" ]; then
+                    to=$(_g_api "pipelines/$id" | jq -r .sha)
+                    from=$(_g_api "pipelines/${second%% *}" | jq -r .sha)
+                else
+                    local prev
+                    prev=$(_g_prev_pipeline "$id")
+                    if [ -z "$prev" ]; then
+                        echo "no earlier pipeline on that branch" >&2
+                        read -r -p "enter to continue... " _ </dev/tty
+                        continue
+                    fi
+                    to=$(_g_api "pipelines/$id" | jq -r .sha)
+                    from=$(_g_api "pipelines/$prev" | jq -r .sha)
+                fi
+                local diff
+                diff=$(_g_compare "$from" "$to")
+                if [ -z "$diff" ]; then
+                    echo "no file changes between those two pipelines"
+                    echo "(same commit, or only the pipeline was re-run)"
+                    read -r -p "enter to continue... " _ </dev/tty
+                else
+                    printf '%s\n' "$diff" | _g_colordiff | ${PAGER:-less} -R
+                fi ;;
+            *) gjob "$id" ;;
+        esac
     done
 }
 
@@ -330,12 +409,15 @@ gjob() {
         # stage, name and duration.
         action=$(menu_pick "job $jid
   $line
-" trace retry cancel play artifacts browser pipeline log back) \
+" trace code retry cancel play artifacts browser pipeline log back) \
             || continue                     # esc or q in the menu: back to jobs
 
         case $action in
             trace)     glab api "projects/$proj/jobs/$jid/trace" \
                            | g-clean | ${PAGER:-less} -R ;;
+            code)
+                _g_show "$(_g_api "pipelines/$pid" | jq -r .sha)" \
+                    | _g_colordiff | ${PAGER:-less} -R ;;
             retry)     glab api -X POST "projects/$proj/jobs/$jid/retry"  | jq -r '.id, .status' ;;
             cancel)    glab api -X POST "projects/$proj/jobs/$jid/cancel" | jq -r '.id, .status' ;;
             play)      glab api -X POST "projects/$proj/jobs/$jid/play"   | jq -r '.id, .status' ;;
@@ -349,7 +431,7 @@ gjob() {
         # A pager clears itself; everything else prints a line or two that
         # would vanish the moment the list redraws.
         case $action in
-            trace|pipeline|back) ;;
+            trace|code|pipeline|back) ;;
             *) read -r -p "enter to return to the job list... " _ </dev/tty ;;
         esac
     done

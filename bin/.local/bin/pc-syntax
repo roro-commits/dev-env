@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# pc-syntax FILE...
+# Does this file parse? Catches the cheap mistakes - an unclosed bracket, a
+# stray comma, a truncated paste - before a pipeline spends six minutes on it.
+#
+# Real parsers, not bracket counting: a naive balance check fires on every
+# "}" inside a string. Each language is checked by something that knows the
+# grammar, and files whose language has no checker installed are skipped.
+set -uo pipefail
+
+rc=0
+missing=""
+
+have() { command -v "$1" >/dev/null; }
+
+note_missing() {
+    case " $missing " in
+        *" $1 "*) ;;
+        *) missing="$missing $1" ;;
+    esac
+}
+
+fail() { printf '%s: %s\n' "$1" "$2"; rc=1; }
+
+for f in "$@"; do
+    [ -f "$f" ] || continue
+
+    case "$f" in
+        *.sh|*.bash)
+            if have bash; then
+                bash -n "$f" 2>/tmp/pc-syntax.$$ || fail "$f" "$(head -2 /tmp/pc-syntax.$$)"
+            fi ;;
+
+        *.py)
+            if have python3; then
+                # ast.parse rather than py_compile: same syntax check, but it
+                # writes nothing, so no __pycache__ appears in the working tree.
+                python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])' \
+                    "$f" 2>/tmp/pc-syntax.$$ \
+                    || fail "$f" "$(grep -E 'SyntaxError|line [0-9]+' /tmp/pc-syntax.$$ | tail -2)"
+            else note_missing python3; fi ;;
+
+        *.yml|*.yaml)
+            # yamllint catches this too, but it runs later and is about style;
+            # a file that does not parse should fail on the first hook.
+            # safe_load_all so multi-document files (--- separators) work.
+            if have python3 && python3 -c 'import yaml' 2>/dev/null; then
+                python3 -c '
+import sys, yaml
+
+# Duplicate keys are legal YAML and silently keep the last value - in a
+# .gitlab-ci.yml that means a job quietly replacing another. Reject them.
+class Strict(yaml.SafeLoader):
+    pass
+
+def no_dupes(loader, node, deep=False):
+    seen = set()
+    for k, _ in node.value:
+        key = loader.construct_object(k, deep=deep)
+        if key in seen:
+            raise yaml.YAMLError(f"duplicate key: {key}")
+        seen.add(key)
+    return yaml.SafeLoader.construct_mapping(loader, node, deep)
+
+Strict.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_dupes)
+
+try:
+    list(yaml.load_all(open(sys.argv[1]), Loader=Strict))
+except yaml.YAMLError as e:
+    m = getattr(e, "problem_mark", None)
+    print(f"line {m.line + 1}: {e.problem}" if m else e)
+    sys.exit(1)
+' "$f" 2>/tmp/pc-syntax.$$ || fail "$f" "$(head -1 /tmp/pc-syntax.$$)"
+            else note_missing "python3-yaml"; fi ;;
+
+        *.json)
+            if have jq; then
+                jq empty "$f" 2>/tmp/pc-syntax.$$ || fail "$f" "$(head -1 /tmp/pc-syntax.$$)"
+            else note_missing jq; fi ;;
+
+        *.js|*.mjs|*.cjs)
+            if have node; then
+                node --check "$f" 2>/tmp/pc-syntax.$$ || fail "$f" "$(head -3 /tmp/pc-syntax.$$ | tail -1)"
+            else note_missing node; fi ;;
+
+        *.go)
+            if have gofmt; then
+                gofmt -e "$f" >/dev/null 2>/tmp/pc-syntax.$$ || fail "$f" "$(head -1 /tmp/pc-syntax.$$)"
+            else note_missing gofmt; fi ;;
+
+        *.toml)
+            if have python3; then
+                python3 -c "
+import sys, tomllib
+try:
+    tomllib.load(open(sys.argv[1], 'rb'))
+except Exception as e:
+    print(e); sys.exit(1)
+" "$f" 2>/tmp/pc-syntax.$$ || fail "$f" "$(head -1 /tmp/pc-syntax.$$)"
+            fi ;;
+
+        *.nix)
+            if have nix-instantiate; then
+                nix-instantiate --parse "$f" >/dev/null 2>/tmp/pc-syntax.$$ \
+                    || fail "$f" "$(head -2 /tmp/pc-syntax.$$ | tail -1)"
+            else note_missing nix-instantiate; fi ;;
+
+        *.kdl)
+            # No common CLI parser. Balance check is safe here: KDL strings
+            # cannot span lines and the format is bracket-heavy, so a mismatch
+            # across the whole file is a real error.
+            awk '
+                { gsub(/"[^"]*"/, "") ; gsub(/\/\/.*/, "")
+                  n = gsub(/\{/, "{") ; o += n
+                  n = gsub(/\}/, "}") ; c += n }
+                END { if (o != c) { printf "%d { vs %d }\n", o, c; exit 1 } }
+            ' "$f" >/tmp/pc-syntax.$$ 2>&1 || fail "$f" "unbalanced braces: $(cat /tmp/pc-syntax.$$)" ;;
+    esac
+done
+
+rm -f /tmp/pc-syntax.$$
+
+if [ -n "$missing" ]; then
+    printf 'pc-syntax: not installed, skipped:%s\n' "$missing" >&2
+fi
+
+exit $rc

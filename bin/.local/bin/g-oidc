@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# g-oidc [VAR_NAME] [aud]
+#
+# Mints a JWT shaped like a GitLab id_token and prints a line you can paste
+# into .gitlab-ci-local-variables.yml. Nothing verifies it - no Vault, no
+# issuer, no network. It exists so a job that reads a token can run.
+#
+#   g-oidc                        -> VAULT_ID_TOKEN, aud from the remote host
+#   g-oidc MY_TOKEN               -> a different variable name
+#   g-oidc MY_TOKEN https://x     -> and a different audience
+#   g-oidc --export MY_TOKEN      -> print an export line instead
+#
+# What this proves: your script reads the token, passes it on, and handles it
+# being absent. What it cannot prove: that anything would accept it. The
+# signature is from a throwaway key, so every relying party rejects it - which
+# is the security property working, not a bug.
+set -uo pipefail
+
+export_mode=0
+[ "${1:-}" = "--export" ] && { export_mode=1; shift; }
+
+var=${1:-VAULT_ID_TOKEN}
+aud=${2:-}
+
+command -v python3 >/dev/null || { echo "g-oidc: python3 needed" >&2; exit 1; }
+python3 -c 'import jwt' 2>/dev/null || {
+    echo "g-oidc: pip install --break-system-packages pyjwt" >&2; exit 1; }
+
+key="${XDG_CACHE_HOME:-$HOME/.cache}/g-oidc.key"
+if [ ! -f "$key" ]; then
+    mkdir -p "$(dirname "$key")"
+    openssl genrsa -out "$key" 2048 2>/dev/null || {
+        echo "g-oidc: could not generate a key" >&2; exit 1; }
+    chmod 600 "$key"
+fi
+
+# Claims mirror what GitLab actually puts in an id_token, so a script that
+# parses one gets the shape it expects.
+host=$(git remote get-url origin 2>/dev/null \
+       | sed 's|^git@||; s|^ssh://||; s|^https\?://||; s|^[^@]*@||; s|[:/].*||')
+# The full path after the host, group included: dsoc/tools/ecu, not ecu.
+# GitLab's sub claim uses the whole thing, and bound_claims match on it.
+path=$(git remote get-url origin 2>/dev/null \
+       | sed -e 's|^git@[^:]*:||' \
+             -e 's|^ssh://[^/]*/||' \
+             -e 's|^https\?://[^/]*/||' \
+             -e 's|^[^@]*@[^/]*/||' \
+             -e 's|^/||' -e 's|\.git$||')
+ref=$(git branch --show-current 2>/dev/null)
+[ -n "$aud" ] || aud="https://${host:-gitlab.example.com}"
+
+token=$(HOST="${host:-gitlab.example.com}" PATHNAME="${path:-group/project}" \
+        REF="${ref:-main}" AUD="$aud" KEY="$key" python3 - <<'PY'
+import jwt, os, time, uuid
+
+now = int(time.time())
+host, path = os.environ["HOST"], os.environ["PATHNAME"]
+ref = os.environ["REF"]
+
+claims = {
+    "iss": f"https://{host}",
+    "sub": f"project_path:{path}:ref_type:branch:ref:{ref}",
+    "aud": os.environ["AUD"],
+    "iat": now, "nbf": now, "exp": now + 3600, "jti": str(uuid.uuid4()),
+    "project_path": path,
+    "project_id": "0",
+    "namespace_path": path.rsplit("/", 1)[0] if "/" in path else path,
+    "ref": ref,
+    "ref_type": "branch",
+    "ref_protected": "false",
+    "pipeline_source": "push",
+    "job_id": "0",
+    "user_login": os.environ.get("USER", "local"),
+    "runner_environment": "self-hosted",
+}
+print(jwt.encode(claims, open(os.environ["KEY"]).read(), algorithm="RS256"))
+PY
+) || { echo "g-oidc: minting failed" >&2; exit 1; }
+
+if [ "$export_mode" -eq 1 ]; then
+    printf 'export %s=%s\n' "$var" "$token"
+else
+    printf '%s: %s\n' "$var" "$token"
+fi
+
+{
+    printf '\n'
+    printf '# expires in 1 hour. aud=%s  sub=project_path:%s:ref_type:branch:ref:%s\n' \
+        "$aud" "${path:-group/project}" "${ref:-main}"
+    printf '# signed with a throwaway key at %s - nothing will verify it.\n' "$key"
+} >&2

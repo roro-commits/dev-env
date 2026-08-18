@@ -172,6 +172,7 @@ in
   home.sessionPath = [
     "/opt/klocwork/desktoptools/kw-cmd/kw-cmd/bin"
     "/opt/klocwork/buildtools/kwbuildtools/bin"
+    "$HOME/.local/bin"
   ];
 
   # ... the rest of your configuration ...
