@@ -266,18 +266,16 @@ programs.helix = {
       # Bash, Markdown, and YAML
       bash-lsp = { command = "bash-language-server"; args = ["start"]; };
       marksman = { command = "marksman"; args = ["server"]; };
-      yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"]; };
+      yaml-lsp = { command = "yaml-language-server"; args = ["--stdio"];
+              yaml-lsp = {
+                config.yaml.schemas = {
+          "https://gitlab.com/gitlab-org/gitlab/-/raw/master/app/assets/javascripts/editor/schema/ci.json" =
+            [ ".gitlab-ci.yml" "**/.gitlab-ci.yml" ];
+        };
+      }; };
 
     };
 
-  #YAMl Gitlab CI
-  gitlab-ci-ls = {
-    command = "gitlab-ci-ls";
-    config = {
-      log_path = "/tmp/gitlab-ci-ls.log";
-      cache = "/tmp/gitlab-ci-ls-cache";
-    };
-  };
 
     language = [
       {
@@ -299,7 +297,7 @@ programs.helix = {
       {
         name = "yaml";
         file-types = ["yml" "yaml"];
-        language-servers = [ "yaml-lsp" "typos" "codebook" "efm-yamllint" "gitlab-ci-ls" ];
+        language-servers = [ "yaml-lsp" "typos" "codebook" "efm-yaml" "gitlab-ci-ls" ];
       }
     ];
   };

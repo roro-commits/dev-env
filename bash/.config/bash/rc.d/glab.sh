@@ -286,7 +286,10 @@ _g_pipelines() {
 #>   alt-s    the commit it ran on - message, author, and what it changed
 #>   alt-d    a diff: one row, since the previous run on that ref;
 #>            two rows tabbed, between those two pipelines
-#>   ctrl-v   glab's own TUI
+#>   alt-v    glab's own TUI
+#>
+#>   all alt- keys: ctrl-d is fzf's delete-char, and ctrl-v came back empty
+#>   through the terminal, so it fell through and opened the jobs instead
 #>
 #>   alt-d rather than ctrl-d because fzf binds ctrl-d to delete-char, which
 #>   aborts the picker on an empty query
@@ -309,8 +312,8 @@ gpipe() {
         # --expect makes fzf print the pressed key as the first line, which is
         # how one picker offers two actions without a second menu.
         out=$(_g_pipelines "${1:-20}" | pick --ansi --prompt='pipeline> ' --height=60% \
-                  --expect=ctrl-v,alt-d,alt-s --multi \
-                  --header='enter jobs   alt-s code   alt-d diff   ctrl-v TUI   tab pick 2   esc') \
+                  --expect=alt-v,alt-d,alt-s --multi \
+                  --header='enter jobs   alt-s code   alt-d diff   alt-v TUI   tab pick 2   esc') \
               || return 0
 
         key=$(printf '%s\n' "$out" | sed -n 1p)
@@ -320,7 +323,14 @@ gpipe() {
 
         id=${line%% *}
         case $key in
-            ctrl-v) glab ci view -p "$id" ;;
+            alt-v)
+                # glab ci view can fail quietly - wrong version, no tty, an id
+                # it does not like - which looks identical to the key not
+                # working. Say which it was.
+                if ! glab ci view -p "$id"; then
+                    echo "glab ci view -p $id failed - try: glab ci view --help" >&2
+                    read -r -p "enter to continue... " _ </dev/tty
+                fi ;;
             alt-s)
                 # The commit this pipeline ran on: what the code was when it
                 # passed or failed.
